@@ -1,0 +1,62 @@
+name: CI Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-win32:
+    name: Build (Win32 MSVC)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: >
+          cmake -B build -A Win32
+          -DSIN_DEDICATED=OFF
+          -DSIN_MP=ON
+          -DSIN_BUILD_CLIENT=ON
+          -DSIN_BUILD_REF_GL=ON
+          -DSIN_BUILD_GAME=ON
+
+      - name: Build All Targets (Release)
+        run: cmake --build build --config Release
+
+      - name: Verify Build Artifacts
+        shell: pwsh
+        run: |
+          $artifacts = @(
+            'build/Release/sin_client.exe',
+            'build/Release/ref_gl.dll',
+            'build/baseq2/Release/gamex86.dll'
+          )
+          foreach ($file in $artifacts) {
+            if (-not (Test-Path $file)) {
+              throw "Expected build artifact missing: $file"
+            }
+            Get-Item $file | Select-Object FullName, Length
+          }
+
+      - name: Configure Dedicated Server
+        run: >
+          cmake -B build-ded -A Win32
+          -DSIN_DEDICATED=ON
+          -DSIN_MP=ON
+          -DSIN_BUILD_GAME=ON
+
+      - name: Build Dedicated Server (Release)
+        run: cmake --build build-ded --config Release
+
+      - name: Verify Dedicated Artifacts
+        shell: pwsh
+        run: |
+          $file = 'build-ded/Release/sin_ded.exe'
+          if (-not (Test-Path $file)) {
+            throw "Expected dedicated artifact missing: $file"
+          }
+          Get-Item $file | Select-Object FullName, Length

@@ -1,0 +1,58 @@
+# Build directories
+build/
+build-*/
+out/
+bin/
+.cache/
+
+# Local scripts and developer tooling
+scripts/
+*.ps1
+
+# Visual Studio / MSVC artifacts
+.vs/
+*.user
+*.vcxproj.user
+*.suo
+*.ncb
+*.opt
+*.plg
+*.aps
+*.opendb
+Debug/
+Release/
+
+# CMake artifacts
+CMakeUserPresets.json
+CMakeCache.txt
+CMakeFiles/
+
+# Compiled binaries and intermediate files
+*.exe
+*.dll
+*.ilk
+*.pdb
+*.obj
+*.lib
+*.exp
+*.idb
+
+# Logs and runtime dumps
+*.log
+*.err
+*.tlog
+qconsole.log
+
+# Game asset packs & runtime trees (proprietary game data must not be tracked)
+*.sin
+sinroot/
+
+# Secrets and environment files
+.env
+.env.*
+
+# OS artifacts
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
