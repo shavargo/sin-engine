@@ -193,6 +193,7 @@ qboolean	NET_StringToSockaddr (char *s, struct sockaddr *sadr)
 	char	*colon;
 	int		val;
 	char	copy[128];
+	unsigned long inaddr;
 	
 	memset (sadr, 0, sizeof(*sadr));
 
@@ -228,9 +229,10 @@ qboolean	NET_StringToSockaddr (char *s, struct sockaddr *sadr)
 				((struct sockaddr_in *)sadr)->sin_port = htons((short)atoi(colon+1));	
 			}
 		
-		if (copy[0] >= '0' && copy[0] <= '9')
+		inaddr = inet_addr(copy);
+		if (inaddr != INADDR_NONE || !strcmp(copy, "255.255.255.255"))
 		{
-			*(int *)&((struct sockaddr_in *)sadr)->sin_addr = inet_addr(copy);
+			*(int *)&((struct sockaddr_in *)sadr)->sin_addr = inaddr;
 		}
 		else
 		{

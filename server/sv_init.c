@@ -401,7 +401,6 @@ void SV_InitGame (void)
 {
 	int		i;
 	edict_t	*ent;
-	char	idmaster[32];
 
 	if (svs.initialized)
 	{
@@ -468,10 +467,9 @@ void SV_InitGame (void)
 	// init network stuff
 	NET_Config ( (maxclients->value > 1) );
 
-	// heartbeats will always be sent to the id master
-	svs.last_heartbeat = -99999;		// send immediately
-	Com_sprintf(idmaster, sizeof(idmaster), "192.246.40.37:%i", PORT_MASTER);
-	NET_StringToAdr (idmaster, &master_adr[0]);
+	// initialize master servers if configured
+	svs.last_heartbeat = -9999999;		// send immediately
+	Master_Init ();
 
 	// init game
 	SV_InitGameProgs ();
