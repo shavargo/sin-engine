@@ -1444,6 +1444,10 @@ trace_t		CM_BoxTrace (vec3_t start, vec3_t end,
 	VectorCopy (end, trace_end);
 	VectorCopy (mins, trace_mins);
 	VectorCopy (maxs, trace_maxs);
+#ifdef SIN_MP
+	VectorSubtract (end, start, trace_trace.dir);
+	VectorNormalize (trace_trace.dir);
+#endif
 
 	//
 	// check for position test special case

@@ -252,6 +252,7 @@ typedef struct model_s
 #define	SINMDL_MAX_SURFS	32
 #define	SINMDL_MAX_ANIMS	24
 #define	SINMDL_ANIM_NAME	32
+#define	SINMDL_MAX_SKINS	16
 
 typedef struct sinmdl_surf_s
 {
@@ -276,6 +277,7 @@ typedef struct sinmdl_s
 	int				nsurfs;
 	int				num_anims;
 	float			def_scale;		/* from .def "scale" line (default 1) */
+	vec3_t			def_origin;		/* from .def origin */
 	float			radius;			/* decoded mesh radius (unscaled) */
 	vec3_t			center;			/* mesh centroid (unscaled) */
 	vec3_t			*xyz;			/* decoded scratch */
@@ -286,6 +288,8 @@ typedef struct sinmdl_s
 	int				last_frame;
 	int				last_oldframe;
 	sinmdl_surf_t	surfs[SINMDL_MAX_SURFS];
+	int				num_skins;
+	image_t			*skins[SINMDL_MAX_SKINS];
 	image_t			*skin;
 } sinmdl_t;
 #endif
