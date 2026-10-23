@@ -582,6 +582,8 @@ void SV_ClipMoveToEntities ( moveclip_t *clip )
 				continue;	// don't clip against own missiles
 			if (clip->passedict->owner == touch)
 				continue;	// don't clip against owner
+			if (clip->passedict->owner && touch->owner == clip->passedict->owner)
+				continue;	// don't clip against projectiles or attachments with the same owner
 		}
 
 		if ( !(clip->contentmask & CONTENTS_DEADMONSTER)

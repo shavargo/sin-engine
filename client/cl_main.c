@@ -59,6 +59,7 @@ cvar_t	*cl_showclamp;
 
 cvar_t	*cl_paused;
 cvar_t	*cl_timedemo;
+cvar_t	*cl_autocmd;
 
 cvar_t	*lookspring;
 cvar_t	*lookstrafe;
@@ -1401,6 +1402,48 @@ void CL_Precache_f (void)
 #ifdef SIN_MP
 /*
 =================
+CL_Sin_Loadmap_f / CL_Sin_PrecacheDone_f
+
+SiN map loading / precache completion handshake:
+The server issues "loadmap %i", the client loads the BSP and prepares the refresh,
+then requests the post-loadmap baselines pass via "baselines %i 0".
+Once baselines finish, the server issues "precache_done %i", prompting "begin %i".
+=================
+*/
+void CL_Sin_Loadmap_f (void)
+{
+	unsigned	map_checksum;
+
+	if (cls.state != ca_connected)
+		return;
+
+	if (Cmd_Argc() >= 2)
+		precache_spawncount = atoi(Cmd_Argv(1));
+
+	CM_LoadMap (cl.configstrings[CS_MODELS+1], true, &map_checksum);
+	if (cl.configstrings[CS_MAPCHECKSUM][0] && map_checksum != (unsigned)atoi(cl.configstrings[CS_MAPCHECKSUM]))
+		Com_Error (ERR_DROP, "Local map version differs from server.\n");
+
+	CL_RegisterSounds ();
+	CL_PrepRefresh ();
+
+	MSG_WriteByte (&cls.netchan.message, clc_stringcmd);
+	MSG_WriteString (&cls.netchan.message, va("baselines %i 0\n", precache_spawncount));
+}
+
+void CL_Sin_PrecacheDone_f (void)
+{
+	if (cls.state != ca_connected)
+		return;
+
+	if (Cmd_Argc() >= 2)
+		precache_spawncount = atoi(Cmd_Argv(1));
+
+	MSG_WriteByte (&cls.netchan.message, clc_stringcmd);
+	MSG_WriteString (&cls.netchan.message, va("begin %i\n", precache_spawncount));
+}
+/*
+=================
 CL_Sin_Pl_f / CL_Sin_HudStub_f
 
 SiN pickup HUD: "pl <item_index> <amount>" via svc_console_command.
@@ -1421,7 +1464,7 @@ void CL_Sin_Pl_f (void)
 
 void CL_Sin_HudStub_f (void)
 {
-	/* dm/fi/fo/iml/… — swallow until full HUD layout port */
+	/* dm/fi/fo/iml/... -- swallow until full HUD layout port */
 }
 #endif
 
@@ -1489,6 +1532,7 @@ void CL_InitLocal (void)
 	cl_timeout = Cvar_Get ("cl_timeout", "120", 0);
 	cl_paused = Cvar_Get ("paused", "0", 0);
 	cl_timedemo = Cvar_Get ("timedemo", "0", 0);
+	cl_autocmd = Cvar_Get ("cl_autocmd", "", 0);
 
 	rcon_client_password = Cvar_Get ("rcon_password", "", 0);
 	rcon_address = Cvar_Get ("rcon_address", "", 0);
@@ -1543,6 +1587,10 @@ void CL_InitLocal (void)
 	Cmd_AddCommand ("precache", CL_Precache_f);
 
 	Cmd_AddCommand ("download", CL_Download_f);
+#ifdef SIN_MP
+	Cmd_AddCommand ("loadmap", CL_Sin_Loadmap_f);
+	Cmd_AddCommand ("precache_done", CL_Sin_PrecacheDone_f);
+#endif
 
 #ifdef SIN_MP
 	/*
@@ -1612,7 +1660,7 @@ void CL_WriteConfiguration (void)
 	if (cls.state == ca_uninitialized)
 		return;
 
-	/* MAX_OSPATH — MAX_QPATH (64) truncates on long basedirs */
+	/* MAX_OSPATH -- MAX_QPATH (64) truncates on long basedirs */
 	Com_sprintf (path, sizeof(path),"%s/config.cfg",FS_Gamedir());
 	f = fopen (path, "w");
 	if (!f)

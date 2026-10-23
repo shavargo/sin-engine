@@ -585,6 +585,12 @@ void SCR_PlayCinematic (char *arg)
 
 	cl.cinematicframe = 0;
 	dot = strstr (arg, ".");
+	if (dot && (!Q_stricmp (dot, ".bik") || !Q_stricmp (dot, ".avi") || !Q_stricmp (dot, ".mpg") || !Q_stricmp (dot, ".mov")))
+	{
+		SCR_FinishCinematic ();
+		cl.cinematictime = 0;
+		return;
+	}
 	if (dot && !strcmp (dot, ".pcx"))
 	{	// static pcx image
 		Com_sprintf (name, sizeof(name), "pics/%s", arg);
