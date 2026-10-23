@@ -23,10 +23,29 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //define	PARANOID			// speed sapping error checking
 
 #include "../qcommon/qcommon.h"
-#ifdef SIN_MP
+/*
+ * STATIC_GAME hard-links stock Q2 game objects (API 3). Their export/edict
+ * layouts match game/game.h — not sin_game.h (API 14). Keep SiN protocol
+ * (SIN_MP in qcommon) but use the Q2 game interface for ge / edict_t.
+ */
+#if defined(SIN_MP) && !defined(STATIC_GAME)
 #include "../sin/sin_game.h"
 #else
 #include "../game/game.h"
+#endif
+#if defined(STATIC_GAME) && defined(SIN_MP)
+#ifndef SVF_PROJECTILE
+#define SVF_PROJECTILE		0x00000008
+#endif
+#ifndef SVF_ONLYPARENT
+#define SVF_ONLYPARENT		0x00000020
+#endif
+#ifndef SVF_MONSTERCLIP
+#define SVF_MONSTERCLIP		0x00000080
+#endif
+#ifndef SVF_PLAYERCLIP
+#define SVF_PLAYERCLIP		0x00000100
+#endif
 #endif
 
 //=============================================================================

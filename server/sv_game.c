@@ -356,90 +356,102 @@ void SCR_DebugGraph (float value, int color);
 
 void SV_InitGameProgs (void)
 {
-	game_import_t	import;
-
 	// unload anything we have now
 	if (ge)
 		SV_ShutdownGameProgs ();
 
-#ifdef SIN_MP
-	SINMDL_Init ();
-	Sin_FillGameImport (&import);
-#else
-	// load a new game dll
-	import.multicast = SV_Multicast;
-	import.unicast = PF_Unicast;
-	import.bprintf = SV_BroadcastPrintf;
-	import.dprintf = PF_dprintf;
-	import.cprintf = PF_cprintf;
-	import.centerprintf = PF_centerprintf;
-	import.error = PF_error;
-
-	import.linkentity = SV_LinkEdict;
-	import.unlinkentity = SV_UnlinkEdict;
-	import.BoxEdicts = SV_AreaEdicts;
-	import.trace = SV_Trace;
-	import.pointcontents = SV_PointContents;
-	import.setmodel = PF_setmodel;
-	import.inPVS = PF_inPVS;
-	import.inPHS = PF_inPHS;
-	import.Pmove = Pmove;
-
-	import.modelindex = SV_ModelIndex;
-	import.soundindex = SV_SoundIndex;
-	import.imageindex = SV_ImageIndex;
-
-	import.configstring = PF_Configstring;
-	import.sound = PF_StartSound;
-	import.positioned_sound = SV_StartSound;
-
-	import.WriteChar = PF_WriteChar;
-	import.WriteByte = PF_WriteByte;
-	import.WriteShort = PF_WriteShort;
-	import.WriteLong = PF_WriteLong;
-	import.WriteFloat = PF_WriteFloat;
-	import.WriteString = PF_WriteString;
-	import.WritePosition = PF_WritePos;
-	import.WriteDir = PF_WriteDir;
-	import.WriteAngle = PF_WriteAngle;
-
-	import.TagMalloc = Z_TagMalloc;
-	import.TagFree = Z_Free;
-	import.FreeTags = Z_FreeTags;
-
-	import.cvar = Cvar_Get;
-	import.cvar_set = Cvar_Set;
-	import.cvar_forceset = Cvar_ForceSet;
-
-	import.argc = Cmd_Argc;
-	import.argv = Cmd_Argv;
-	import.args = Cmd_Args;
-	import.AddCommandString = Cbuf_AddText;
-
-	import.DebugGraph = SCR_DebugGraph;
-	import.SetAreaPortalState = CM_SetAreaPortalState;
-	import.AreasConnected = CM_AreasConnected;
-#endif
-
 #ifdef STATIC_GAME
 	/*
-	 * Game objects are built without SIN_MP (Q2 layout). Avoid the SiN
-	 * GetGameAPI prototype from sin_game.h by using an untyped call.
+	 * Hard-linked stock game is Q2 ABI (API 3, compiled -USIN_MP).
+	 * Do not Sin_FillGameImport — that layout is for real SiN game DLLs.
 	 */
 	{
-		void *(*get_game_api) (void *) = (void *(*) (void *))GetGameAPI;
-		ge = (game_export_t *)get_game_api (&import);
+		void	*SV_InitStaticQ2Game (void);
+
+#ifdef SIN_MP
+		SINMDL_Init ();
+#endif
+		ge = (game_export_t *)SV_InitStaticQ2Game ();
+		if (!ge)
+			Com_Error (ERR_DROP, "failed to load game DLL");
+		if (ge->apiversion != 3)
+			Com_Error (ERR_DROP, "static game is version %i, not 3",
+				ge->apiversion);
+		ge->Init ();
+		return;
 	}
 #else
-	ge = (game_export_t *)Sys_GetGameAPI (&import);
+	{
+		game_import_t	import;
+
+#ifdef SIN_MP
+		SINMDL_Init ();
+		Sin_FillGameImport (&import);
+#else
+		import.multicast = SV_Multicast;
+		import.unicast = PF_Unicast;
+		import.bprintf = SV_BroadcastPrintf;
+		import.dprintf = PF_dprintf;
+		import.cprintf = PF_cprintf;
+		import.centerprintf = PF_centerprintf;
+		import.error = PF_error;
+
+		import.linkentity = SV_LinkEdict;
+		import.unlinkentity = SV_UnlinkEdict;
+		import.BoxEdicts = SV_AreaEdicts;
+		import.trace = SV_Trace;
+		import.pointcontents = SV_PointContents;
+		import.setmodel = PF_setmodel;
+		import.inPVS = PF_inPVS;
+		import.inPHS = PF_inPHS;
+		import.Pmove = Pmove;
+
+		import.modelindex = SV_ModelIndex;
+		import.soundindex = SV_SoundIndex;
+		import.imageindex = SV_ImageIndex;
+
+		import.configstring = PF_Configstring;
+		import.sound = PF_StartSound;
+		import.positioned_sound = SV_StartSound;
+
+		import.WriteChar = PF_WriteChar;
+		import.WriteByte = PF_WriteByte;
+		import.WriteShort = PF_WriteShort;
+		import.WriteLong = PF_WriteLong;
+		import.WriteFloat = PF_WriteFloat;
+		import.WriteString = PF_WriteString;
+		import.WritePosition = PF_WritePos;
+		import.WriteDir = PF_WriteDir;
+		import.WriteAngle = PF_WriteAngle;
+
+		import.TagMalloc = Z_TagMalloc;
+		import.TagFree = Z_Free;
+		import.FreeTags = Z_FreeTags;
+
+		import.cvar = Cvar_Get;
+		import.cvar_set = Cvar_Set;
+		import.cvar_forceset = Cvar_ForceSet;
+
+		import.argc = Cmd_Argc;
+		import.argv = Cmd_Argv;
+		import.args = Cmd_Args;
+		import.AddCommandString = Cbuf_AddText;
+
+		import.DebugGraph = SCR_DebugGraph;
+		import.SetAreaPortalState = CM_SetAreaPortalState;
+		import.AreasConnected = CM_AreasConnected;
 #endif
 
-	if (!ge)
-		Com_Error (ERR_DROP, "failed to load game DLL");
-	if (ge->apiversion != GAME_API_VERSION)
-		Com_Error (ERR_DROP, "game is version %i, not %i", ge->apiversion,
-		GAME_API_VERSION);
+		ge = (game_export_t *)Sys_GetGameAPI (&import);
 
-	ge->Init ();
+		if (!ge)
+			Com_Error (ERR_DROP, "failed to load game DLL");
+		if (ge->apiversion != GAME_API_VERSION)
+			Com_Error (ERR_DROP, "game is version %i, not %i", ge->apiversion,
+				GAME_API_VERSION);
+
+		ge->Init ();
+	}
+#endif
 }
 

@@ -355,7 +355,7 @@ void SV_Begin_f (void)
 	sv_client->state = cs_spawned;
 
 	// call the game begin function
-#ifdef SIN_MP
+#if defined(SIN_MP) && !defined(STATIC_GAME)
 	{
 		extern void Sys_SinCrashCrumb (const char *msg);
 		Sys_SinCrashCrumb ("ge.ClientBegin");

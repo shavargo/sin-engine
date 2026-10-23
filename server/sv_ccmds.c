@@ -321,7 +321,7 @@ void SV_WriteLevelFile (void)
 	fclose (f);
 
 	Com_sprintf (name, sizeof(name), "%s/save/current/%s.sav", FS_Gamedir(), sv.name);
-#ifdef SIN_MP
+#if defined(SIN_MP) && !defined(STATIC_GAME)
 	ge->WriteLevel (name, false);
 #else
 	ge->WriteLevel (name);
