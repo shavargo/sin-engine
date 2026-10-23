@@ -125,12 +125,6 @@ For detailed hosting notes and configuration options, see [docs/HOSTING.md](docs
 
 ---
 
-## Companion Research
-
-Protocol reverse engineering, Ghidra decompilation notes, and symbol ledgers are maintained in the companion research repository [`sin-mp-rea`](https://github.com/shavargo/sin-mp-rea).
-
----
-
 ## Contributing
 
 Contributions, bug reports, and pull requests are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on code style and pull request procedures.
