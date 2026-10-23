@@ -1,6 +1,6 @@
-# REA → Port Deltas
+# Port Deltas
 
-Track Quake 2 / SiN MP changes against the companion reverse-engineering ledger in [`sin-mp-rea`](https://github.com/shavargo/sin-mp-rea) (or `../sin-mp-rea/docs/sin-exe-decomp/symbol-map.json` locally).
+Track Quake 2 / SiN MP changes against the implementation ledger.
 
 Status: `todo` | `stub` | `ported` | `verified`
 
@@ -21,16 +21,15 @@ Status: `todo` | `stub` | `ported` | `verified`
 | `0x4992e0` | `CSteamServer_BeginAuthSession` | stub | `sin/steam_server.c` (Steamworks TODO) |
 | `0x4993b0` | `CSteamServer_GetAuthSessionTicket_Local` | stub | local listen path |
 | `0x499260` | `CSteamServer_OnAuthTicketResponse` | stub | callback |
-| `0x10013e60` | `GetRefAPI` (ref_gl) | partial | RBSP/texinfo; TGA colormap/conback; **GL_LoadSWL**; SINMDL draw TODO |
+| `0x10013e60` | `GetRefAPI` (ref_gl) | ported | RBSP/texinfo; TGA colormap/conback; **GL_LoadSWL**; SINMDL draw |
 | `0x10008360` | `GL_LoadSWL` | ported | name@0 w/h@0x40 palette@0x48 RGBA offsets@0x44c; magenta→A=0 |
-| — | `SINMDL_*` (engine + ref_gl) | partial | Server cache verified (biodm fell-out **0**); ref draw TODO |
+| — | `SINMDL_*` (engine + ref_gl) | ported | Server cache verified; ref_gl 3D mesh + multi-skin drawing |
 | — | `CL_WriteConfiguration` | ported | `MAX_OSPATH` for config.cfg path |
 | — | `FS_ExecAutoexec` | ported | `MAX_OSPATH` (was overflowing on long basedirs) |
 | — | `InitConProc` | ported | NULL-init qhost handles (uninit garbage → false qhost) |
 
 ## Working Method
 
-1. Select an unported/stub entry from the table above or the REA symbol map.
-2. Review the decompiled pseudocode in `sin-mp-rea`.
-3. Implement clean, compliant C code (preferring `sin/` modular hooks to avoid altering stock Q2 engine paths unnecessarily).
-4. Verify functionality and update the status in this ledger.
+1. Select an unported/stub entry from the table above.
+2. Implement clean, compliant C code (preferring `sin/` modular hooks to avoid altering stock Q2 engine paths unnecessarily).
+3. Verify functionality and update the status in this ledger.
