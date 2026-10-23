@@ -8,7 +8,7 @@
 An open-source engine chassis for **SiN 1 Multiplayer**, built on the id Software **Quake II** GPL codebase with protocol, asset, and renderer compatibility for the Steam release.
 
 > [!TIP]
-> **Stock Client Compatibility**: `sin_ded.exe` is functional and works out-of-the-box with the unmodified **stock SiN Gold client from Steam**! The only known gameplay issues currently are with **Rocket Launcher** and **Grenade Launcher** projectiles.
+> **Stock Client Compatibility**: `sin_ded.exe` is functional and works out-of-the-box with the unmodified **stock SiN Gold client from Steam**! Projectile collision physics (Rocket and Grenade Launchers) and SINMDL 3D mesh rendering are fully implemented.
 
 ---
 
@@ -37,15 +37,14 @@ An open-source engine chassis for **SiN 1 Multiplayer**, built on the id Softwar
 | **Dedicated Server** | :white_check_mark: Functional | Works with stock **SiN Gold** Steam client! Protocol 7, `SVC_GetChallenge`, `SVC_DirectConnect`, `sv_steamauth 0` |
 | **Game DLL Interface** | :white_check_mark: Functional | Steam SiN `gamex86.dll` (API 14) loads, `InitGame` & `SpawnEntities` work |
 | **Asset Loading** | :white_check_mark: Functional | 128-byte SPAK headers, RBSP/1 BSPs, 12-byte SiN brushsides, `.swl` textures |
-| **Collision / Bounds** | :white_check_mark: Functional | Model bounds via `.def`/`.sam`, zero fell-out errors on `biodm` |
+| **Collision / Bounds** | :white_check_mark: Functional | Model bounds via `.def`/`.sam`, zero fell-out errors on `biodm`, authentic `trace_t` + `MASK_PROJECTILE` |
+| **Projectile Physics** | :white_check_mark: Functional | Rocket & Grenade Launcher bounce, deflection angles, and damage multipliers verified |
 | **Client Join** | :white_check_mark: Functional | Stock SiN Gold Steam client connects, receives game state, and enters world |
-| **OpenGL Renderer** | :construction: In Progress | SWL texture loading with palette decode, conback `.tga`, SINMDL rendering WIP |
+| **OpenGL Renderer** | :white_check_mark: Functional | SWL texture loading with palette decode, conback `.tga`, SINMDL 3D mesh + multi-skin rendering |
 
-### Known Server Bugs
+### Known Limitations
 
-- **Rocket Launcher & Grenade Launcher**: Projectile behavior and physics for rockets and grenades are currently buggy under `sin_ded.exe` (active investigation). Outside of this, `sin_ded.exe` functions cleanly with the stock Steam SiN Gold client.
-- **Renderer Model Draw**: Client-side SINMDL 3D mesh rendering in `ref_gl.dll` is work-in-progress.
-- **Steamworks Auth**: Client auth validation is stubbed (`sv_steamauth 0` bypasses ticket check).
+- **Steamworks Auth**: Client auth validation is currently stubbed (`sv_steamauth 0` bypasses ticket check).
 
 See [docs/STATUS.md](docs/STATUS.md) and [DELTAS.md](DELTAS.md) for detailed progress tracking.
 
@@ -60,7 +59,7 @@ sin-engine/
 ├── server/           # Quake 2 server engine
 ├── qcommon/          # Common engine utilities and network channel
 ├── win32/            # Win32 platform layer, input, and audio
-├── ref_gl/           # OpenGL hardware renderer (with SiN SWL and RBSP support)
+├── ref_gl/           # OpenGL hardware renderer (with SiN SWL, RBSP, and SINMDL support)
 ├── ref_soft/         # Software renderer (legacy)
 ├── game/             # Stock Quake 2 game DLL (used for clean baseline bring-up)
 ├── sin/              # SiN Multiplayer deltas (protocol 7, SPAK, SINMDL, Steam stubs)
