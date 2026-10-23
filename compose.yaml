@@ -1,0 +1,19 @@
+services:
+  sin-dedicated:
+    container_name: sin-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - SERVER_NAME=Dockge SiN Server
+      - PORT=27910
+      - MAP=biodm
+      - MAX_CLIENTS=8
+      - DEATHMATCH=1
+      - SV_MASTER1=master.shavargo.com:27900
+    ports:
+      - "27910:27910/udp"
+    volumes:
+      # Mount directory containing pak0.sin, pak1.sin, pak2.sin from your licensed Steam install:
+      - ./data/base:/sin/base:ro

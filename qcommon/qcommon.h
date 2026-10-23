@@ -52,8 +52,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define BUILDSTRING "Linux"
 
-#ifdef __i386__
+#ifdef __x86_64__
+#define CPUSTRING "x86_64"
+#elif defined __i386__
 #define CPUSTRING "i386"
+#elif defined __aarch64__
+#define CPUSTRING "aarch64"
 #elif defined __alpha__
 #define CPUSTRING "axp"
 #else

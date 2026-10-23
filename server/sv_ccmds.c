@@ -39,6 +39,7 @@ Specify a list of master servers
 void SV_SetMaster_f (void)
 {
 	int		i, slot;
+	int		count;
 
 	// only dedicated servers send heartbeats
 	if (!dedicated->value)
@@ -48,18 +49,44 @@ void SV_SetMaster_f (void)
 	}
 
 	// make sure the server is listed public
+	if (Cmd_Argc() == 1)
+	{
+		Com_Printf ("Current master servers (default UDP port %i):\n", PORT_MASTER);
+		count = 0;
+		for (i = 0; i < MAX_MASTERS; i++)
+		{
+			if (master_adr[i].port)
+			{
+				Com_Printf ("  slot [%i]: %s\n", i, NET_AdrToString (master_adr[i]));
+				count++;
+			}
+		}
+		if (!count)
+			Com_Printf ("  (none configured - use 'setmaster <addr1> <addr2>...' to set)\n");
+		Com_Printf ("public: %s\n", (public_server && public_server->value) ? "1" : "0");
+		return;
+	}
+
+	if (Cmd_Argc() == 2 && (!Q_stricmp (Cmd_Argv(1), "none") || !Q_stricmp (Cmd_Argv(1), "clear")))
+	{
+		for (i = 0; i < MAX_MASTERS; i++)
+			memset (&master_adr[i], 0, sizeof(master_adr[i]));
+		Com_Printf ("Cleared all master servers.\n");
+		return;
+	}
+
 	Cvar_Set ("public", "1");
 
-	for (i=1 ; i<MAX_MASTERS ; i++)
+	for (i=0 ; i<MAX_MASTERS ; i++)
 		memset (&master_adr[i], 0, sizeof(master_adr[i]));
 
-	slot = 1;		// slot 0 will always contain the id master
+	slot = 0;
 	for (i=1 ; i<Cmd_Argc() ; i++)
 	{
 		if (slot == MAX_MASTERS)
 			break;
 
-		if (!NET_StringToAdr (Cmd_Argv(i), &master_adr[i]))
+		if (!NET_StringToAdr (Cmd_Argv(i), &master_adr[slot]))
 		{
 			Com_Printf ("Bad address: %s\n", Cmd_Argv(i));
 			continue;

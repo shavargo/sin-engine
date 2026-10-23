@@ -52,6 +52,11 @@ cvar_t	*sv_showclamp;
 
 cvar_t	*hostname;
 cvar_t	*public_server;			// should heartbeats be sent
+cvar_t	*sv_master1;
+cvar_t	*sv_master2;
+cvar_t	*sv_master3;
+cvar_t	*sv_master4;
+cvar_t	*gamename;
 
 cvar_t	*sv_reconnect_limit;	// minimum seconds between connect messages
 
@@ -185,10 +190,10 @@ void SVC_Info (void)
 	if (maxclients->value == 1)
 		return;		// ignore in single player
 
-	version = atoi (Cmd_Argv(1));
+	version = Cmd_Argc() > 1 ? atoi (Cmd_Argv(1)) : 0;
 
-	if (version != PROTOCOL_VERSION)
-		Com_sprintf (string, sizeof(string), "%s: wrong version\n", hostname->string, sizeof(string));
+	if (version > 0 && version != PROTOCOL_VERSION && Cmd_Argc() > 1)
+		Com_sprintf (string, sizeof(string), "%s: wrong version\n", hostname->string);
 	else
 	{
 		count = 0;
@@ -594,9 +599,9 @@ void SV_ConnectionlessPacket (void)
 		SVC_Ping ();
 	else if (!strcmp(c, "ack"))
 		SVC_Ack ();
-	else if (!strcmp(c,"status"))
+	else if (!strcmp(c,"status") || !strcmp(c,"getstatus"))
 		SVC_Status ();
-	else if (!strcmp(c,"info"))
+	else if (!strcmp(c,"info") || !strcmp(c,"getinfo"))
 		SVC_Info ();
 	else if (!strcmp(c,"getchallenge"))
 		SVC_GetChallenge ();
@@ -933,6 +938,56 @@ void SV_Frame (int msec)
 ================
 Master_Heartbeat
 
+/*
+================
+Master_Init
+
+Initialize master servers from cvars if none configured yet
+================
+*/
+void Master_Init (void)
+{
+	int		i, slot;
+	cvar_t	*cvars[4];
+
+	cvars[0] = sv_master1;
+	cvars[1] = sv_master2;
+	cvars[2] = sv_master3;
+	cvars[3] = sv_master4;
+
+	// Do not override if masters are already set (e.g. from setmaster or prior level)
+	for (i = 0; i < MAX_MASTERS; i++)
+	{
+		if (master_adr[i].port != 0)
+			return;
+	}
+
+	slot = 0;
+	for (i = 0; i < 4; i++)
+	{
+		if (cvars[i] && cvars[i]->string[0])
+		{
+			if (slot == MAX_MASTERS)
+				break;
+			if (!NET_StringToAdr (cvars[i]->string, &master_adr[slot]))
+			{
+				Com_Printf ("Master [%i] bad address: %s\n", slot, cvars[i]->string);
+				continue;
+			}
+			if (master_adr[slot].port == 0)
+				master_adr[slot].port = BigShort (PORT_MASTER);
+			Com_Printf ("Master [%i] initialized: %s\n", slot, NET_AdrToString (master_adr[slot]));
+			slot++;
+		}
+	}
+	if (slot > 0)
+		Cvar_Set ("public", "1");
+}
+
+/*
+================
+Master_Heartbeat
+
 Send a message to the master every few minutes to
 let it know we are alive, and log information
 ================
@@ -992,8 +1047,8 @@ void Master_Shutdown (void)
 	for (i=0 ; i<MAX_MASTERS ; i++)
 		if (master_adr[i].port)
 		{
-			if (i > 0)
-				Com_Printf ("Sending heartbeat to %s\n", NET_AdrToString (master_adr[i]));
+			Com_Printf ("Sending shutdown to %s\n", NET_AdrToString (master_adr[i]));
+
 			Netchan_OutOfBandPrint (NS_SERVER, master_adr[i], "shutdown");
 		}
 }
@@ -1088,10 +1143,18 @@ void SV_Init (void)
 	sv_airaccelerate = Cvar_Get("sv_airaccelerate", "0", CVAR_LATCH);
 
 	public_server = Cvar_Get ("public", "0", 0);
+	sv_master1 = Cvar_Get ("sv_master1", "", CVAR_ARCHIVE);
+	sv_master2 = Cvar_Get ("sv_master2", "", CVAR_ARCHIVE);
+	sv_master3 = Cvar_Get ("sv_master3", "", CVAR_ARCHIVE);
+	sv_master4 = Cvar_Get ("sv_master4", "", CVAR_ARCHIVE);
+#ifdef SIN_MP
+	gamename = Cvar_Get ("gamename", "sin", CVAR_SERVERINFO);
+#endif
 
 	sv_reconnect_limit = Cvar_Get ("sv_reconnect_limit", "3", CVAR_ARCHIVE);
 
 	SZ_Init (&net_message, net_message_buffer, sizeof(net_message_buffer));
+	Master_Init ();
 
 #ifdef SIN_MP
 	SinSteam_InitServer ();

@@ -421,7 +421,14 @@ void SV_InitGameProgs (void)
 	import.AreasConnected = CM_AreasConnected;
 #endif
 
+#ifdef STATIC_GAME
+	{
+		extern void *GetGameAPI (void *import);
+		ge = (game_export_t *)GetGameAPI (&import);
+	}
+#else
 	ge = (game_export_t *)Sys_GetGameAPI (&import);
+#endif
 
 	if (!ge)
 		Com_Error (ERR_DROP, "failed to load game DLL");

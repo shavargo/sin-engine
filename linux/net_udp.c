@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -142,6 +143,7 @@ qboolean	NET_StringToSockaddr (char *s, struct sockaddr *sadr)
 	struct hostent	*h;
 	char	*colon;
 	char	copy[128];
+	unsigned long inaddr;
 	
 	memset (sadr, 0, sizeof(*sadr));
 	((struct sockaddr_in *)sadr)->sin_family = AF_INET;
@@ -157,9 +159,10 @@ qboolean	NET_StringToSockaddr (char *s, struct sockaddr *sadr)
 			((struct sockaddr_in *)sadr)->sin_port = htons((short)atoi(colon+1));	
 		}
 	
-	if (copy[0] >= '0' && copy[0] <= '9')
+	inaddr = inet_addr(copy);
+	if (inaddr != INADDR_NONE || !strcmp(copy, "255.255.255.255"))
 	{
-		*(int *)&((struct sockaddr_in *)sadr)->sin_addr = inet_addr(copy);
+		*(int *)&((struct sockaddr_in *)sadr)->sin_addr = inaddr;
 	}
 	else
 	{

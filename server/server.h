@@ -209,6 +209,7 @@ extern	netadr_t	net_from;
 extern	sizebuf_t	net_message;
 
 extern	netadr_t	master_adr[MAX_MASTERS];	// address of the master server
+extern	cvar_t		*public_server;
 
 extern	server_static_t	svs;				// persistant server info
 extern	server_t		sv;					// local server
@@ -245,7 +246,9 @@ void SV_UserinfoChanged (client_t *cl);
 
 
 void Master_Heartbeat (void);
-void Master_Packet (void);
+void Master_Shutdown (void);
+void Master_Init (void);
+
 
 //
 // sv_init.c
