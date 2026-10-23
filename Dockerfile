@@ -16,8 +16,9 @@ RUN if [ ! -f "/src/CMakeLists.txt" ]; then \
       git clone -b linux-dev https://github.com/shavargo/sin-engine.git /src; \
     fi
 
-# Build standalone native Linux dedicated server
-RUN cmake -B build \
+# Fresh build dir (ignore any host CMake cache copied into the context)
+RUN rm -rf build \
+ && cmake -B build \
     -DSIN_DEDICATED=ON \
     -DSIN_MP=ON \
     -DSIN_STATIC_GAME=ON \

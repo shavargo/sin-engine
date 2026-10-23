@@ -122,13 +122,14 @@ if(SIN_DEDICATED OR NOT SIN_BUILD_CLIENT)
   set(DED_EXTRA_SOURCES)
   set(DED_EXTRA_DEFS)
   if(SIN_STATIC_GAME)
+    # Compiled into sin_ded without SIN_MP (set_source_files_properties below).
     file(GLOB STATIC_GAME_SOURCES CONFIGURE_DEPENDS
       game/g_*.c
       game/m_*.c
       game/p_*.c
     )
     set(DED_EXTRA_SOURCES ${STATIC_GAME_SOURCES})
-    set(DED_EXTRA_DEFS STATIC_GAME GAME_DLL)
+    set(DED_EXTRA_DEFS STATIC_GAME GAME_DLL GAME_HARD_LINKED)
   endif()
 
   add_executable(sin_ded ${DED_SUBSYSTEM}
@@ -147,6 +148,13 @@ if(SIN_DEDICATED OR NOT SIN_BUILD_CLIENT)
   endif()
   if(DED_EXTRA_DEFS)
     target_compile_definitions(sin_ded PRIVATE ${DED_EXTRA_DEFS})
+  endif()
+  # Game TUs must not see SIN_MP (Q2 CONTENTS_SLIME / entity_state). Strip it per-file.
+  if(SIN_STATIC_GAME AND SIN_MP)
+    set_property(SOURCE ${STATIC_GAME_SOURCES} APPEND PROPERTY COMPILE_OPTIONS "-USIN_MP")
+  endif()
+  if(NOT WIN32)
+    target_compile_definitions(sin_ded PRIVATE stricmp=strcasecmp)
   endif()
   if(MSVC)
     target_compile_options(sin_ded PRIVATE /W3)
