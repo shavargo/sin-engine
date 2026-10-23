@@ -293,8 +293,9 @@ void SV_SpawnServer (char *server, char *spawnpoint, server_state_t serverstate,
 	sv.state = ss_loading;
 	Com_SetServerState (sv.state);
 
-#ifdef SIN_MP
-	/* Game DLL expects Ritual csurface_t (groupname[64] + …); pack from mapsurface_t */
+#if defined(SIN_MP) && !defined(STATIC_GAME)
+	/* Real SiN game DLL: CreateSurfaces sits before edicts in game_export_t.
+	 * STATIC_GAME uses Q2 export layout — that slot is edicts, not a fn ptr. */
 	if (ge->CreateSurfaces)
 	{
 		int				n = CM_NumTexInfo ();

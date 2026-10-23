@@ -109,7 +109,7 @@ struct edict_s
 	int			svflags;			// SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
 	vec3_t		mins, maxs;
 	vec3_t		absmin, absmax, size;
-#ifdef SIN_MP
+#if defined(SIN_MP) && !defined(STATIC_GAME)
 	vec3_t		lmins, lmaxs;
 	float		radius;
 	vec3_t		centroid;

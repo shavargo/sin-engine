@@ -128,7 +128,7 @@ if(SIN_DEDICATED OR NOT SIN_BUILD_CLIENT)
       game/m_*.c
       game/p_*.c
     )
-    set(DED_EXTRA_SOURCES ${STATIC_GAME_SOURCES})
+    set(DED_EXTRA_SOURCES ${STATIC_GAME_SOURCES} server/sv_static_q2game.c)
     set(DED_EXTRA_DEFS STATIC_GAME GAME_DLL GAME_HARD_LINKED)
   endif()
 

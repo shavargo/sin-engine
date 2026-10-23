@@ -1,7 +1,16 @@
 /*
  * Fill SiN game_import_t (API 14) for Steam base/gamex86.dll.
  * SINMDL .def/.sam bounds feed IsModel / CalculateBounds / Anim_*.
+ *
+ * STATIC_GAME builds hard-link stock Q2 game and use sv_static_q2game.c
+ * instead — skip this TU's SiN import types to avoid clashing with game.h.
  */
+#ifdef STATIC_GAME
+void Sin_FillGameImport (void *import)
+{
+	(void)import;
+}
+#else
 #include "../qcommon/qcommon.h"
 #include "../server/server.h"
 #include "sin_game.h"
@@ -552,3 +561,4 @@ void Sin_FillGameImport (game_import_t *import)
 	import->DebugLines = &sin_debug_lines;
 	import->numDebugLines = &sin_num_debug_lines;
 }
+#endif /* !STATIC_GAME */
