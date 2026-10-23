@@ -31,6 +31,14 @@ unsigned	sys_frame_time;
 uid_t saved_euid;
 qboolean stdin_active = true;
 
+#ifdef SIN_MP
+void Sys_SinCrashCrumb (const char *msg)
+{
+	/* Windows records a Vectored Exception crumb; Linux only needs the symbol. */
+	(void)msg;
+}
+#endif
+
 // =======================================================================
 // General routines
 // =======================================================================

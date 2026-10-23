@@ -422,9 +422,13 @@ void SV_InitGameProgs (void)
 #endif
 
 #ifdef STATIC_GAME
+	/*
+	 * Game objects are built without SIN_MP (Q2 layout). Avoid the SiN
+	 * GetGameAPI prototype from sin_game.h by using an untyped call.
+	 */
 	{
-		extern void *GetGameAPI (void *import);
-		ge = (game_export_t *)GetGameAPI (&import);
+		void *(*get_game_api) (void *) = (void *(*) (void *))GetGameAPI;
+		ge = (game_export_t *)get_game_api (&import);
 	}
 #else
 	ge = (game_export_t *)Sys_GetGameAPI (&import);

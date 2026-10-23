@@ -40,11 +40,17 @@ cvar_t	*fraglimit;
 cvar_t	*timelimit;
 cvar_t	*password;
 cvar_t	*spectator_password;
+#ifdef GAME_HARD_LINKED
+/* Owned by the engine when game is statically linked into sin_ded. */
+extern cvar_t	*maxclients;
+extern cvar_t	*dedicated;
+#else
 cvar_t	*maxclients;
+cvar_t	*dedicated;
+#endif
 cvar_t	*maxspectators;
 cvar_t	*maxentities;
 cvar_t	*g_select_empty;
-cvar_t	*dedicated;
 
 cvar_t	*filterban;
 
