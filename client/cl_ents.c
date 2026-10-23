@@ -537,6 +537,124 @@ void CL_ParsePlayerstate (frame_t *oldframe, frame_t *newframe)
 	else
 		memset (state, 0, sizeof(*state));
 
+#ifdef SIN_MP
+	flags = MSG_ReadShort (&net_message) & 0xffff;
+
+	if (flags & SIN_PS_M_TYPE)
+		state->pmove.pm_type = MSG_ReadByte (&net_message);
+
+	if (flags & SIN_PS_M_ORIGIN)
+	{
+		state->pmove.origin[0] = MSG_ReadShort (&net_message);
+		state->pmove.origin[1] = MSG_ReadShort (&net_message);
+		state->pmove.origin[2] = MSG_ReadShort (&net_message);
+	}
+
+	if (flags & SIN_PS_M_VELOCITY)
+	{
+		state->pmove.velocity[0] = MSG_ReadShort (&net_message);
+		state->pmove.velocity[1] = MSG_ReadShort (&net_message);
+		state->pmove.velocity[2] = MSG_ReadShort (&net_message);
+	}
+
+	if (flags & SIN_PS_M_TIME)
+		state->pmove.pm_time = MSG_ReadByte (&net_message);
+
+	if (flags & SIN_PS_M_FLAGS)
+	{
+		state->pmove.pm_flags = MSG_ReadByte (&net_message);
+	}
+	/*
+	 * Stock sin.exe 0x404810: always reads high byte if pm_flags bit 7 is set!
+	 * (See SV_WritePlayerstateToClient in sv_ents.c lines 327-338)
+	 */
+	if (state->pmove.pm_flags & 0x80)
+	{
+		byte temp = MSG_ReadByte (&net_message);
+		state->pmove.pm_flags |= (temp << 8);
+	}
+
+	if (flags & SIN_PS_M_GRAVITY)
+	{
+		short gravity = MSG_ReadShort (&net_message);
+		state->pmove.gravity = gravity & 0x1fff;
+		state->pmove.gravity_dir = (gravity >> 13) & 7;
+	}
+
+	if (flags & SIN_PS_M_DELTA_ANGLES)
+	{
+		state->pmove.delta_angles[0] = MSG_ReadShort (&net_message);
+		state->pmove.delta_angles[1] = MSG_ReadShort (&net_message);
+		state->pmove.delta_angles[2] = MSG_ReadShort (&net_message);
+	}
+
+	if (cl.attractloop)
+		state->pmove.pm_type = PM_FREEZE;		// demo playback
+
+	if (flags & SIN_PS_VIEWOFFSET)
+	{
+		state->viewoffset[0] = MSG_ReadChar (&net_message) * 0.25f;
+		state->viewoffset[1] = MSG_ReadChar (&net_message) * 0.25f;
+		state->viewoffset[2] = MSG_ReadShort (&net_message) * 0.25f;
+	}
+
+	if (flags & SIN_PS_VIEWANGLES)
+	{
+		state->viewangles[0] = MSG_ReadAngle16 (&net_message);
+		state->viewangles[1] = MSG_ReadAngle16 (&net_message);
+		state->viewangles[2] = MSG_ReadAngle16 (&net_message);
+	}
+
+	if (flags & SIN_PS_KICKANGLES)
+	{
+		state->kick_angles[0] = MSG_ReadChar (&net_message) * 0.25f;
+		state->kick_angles[1] = MSG_ReadChar (&net_message) * 0.25f;
+		state->kick_angles[2] = MSG_ReadChar (&net_message) * 0.25f;
+	}
+
+	if (flags & SIN_PS_MUSIC)
+	{
+		int b = MSG_ReadByte (&net_message);
+		state->current_music_mood = b & 0x0f;
+		state->fallback_music_mood = (b >> 4) & 0x0f;
+	}
+
+	if (flags & SIN_PS_GUN)
+	{
+		state->gunangles[0] = MSG_ReadChar (&net_message) * 0.25f;
+		state->gunangles[1] = MSG_ReadChar (&net_message) * 0.25f;
+		state->gunangles[2] = MSG_ReadChar (&net_message) * 0.25f;
+		state->gunoffset[0] = MSG_ReadChar (&net_message) * 0.25f;
+		state->gunoffset[1] = MSG_ReadChar (&net_message) * 0.25f;
+		state->gunoffset[2] = MSG_ReadChar (&net_message) * 0.25f;
+	}
+
+	if (flags & SIN_PS_BLEND)
+	{
+		state->blend[0] = MSG_ReadByte (&net_message) / 255.0f;
+		state->blend[1] = MSG_ReadByte (&net_message) / 255.0f;
+		state->blend[2] = MSG_ReadByte (&net_message) / 255.0f;
+		state->blend[3] = MSG_ReadByte (&net_message) / 255.0f;
+	}
+
+	if (flags & SIN_PS_FOV)
+		state->fov = MSG_ReadByte (&net_message);
+
+	if (flags & SIN_PS_RDFLAGS)
+		state->rdflags = MSG_ReadByte (&net_message);
+
+	/* SiN game DLL may leave fov unset; never hand 0 to CalcFov */
+	if (state->fov < 1 || state->fov > 179)
+		state->fov = 90;
+
+	// parse stats
+	statbits = MSG_ReadLong (&net_message);
+	for (i = 0; i < MAX_STATS; i++)
+	{
+		if (statbits & (1 << i))
+			state->stats[i] = MSG_ReadShort (&net_message);
+	}
+#else
 	flags = MSG_ReadShort (&net_message);
 
 	//
@@ -604,20 +722,12 @@ void CL_ParsePlayerstate (frame_t *oldframe, frame_t *newframe)
 
 	if (flags & PS_WEAPONINDEX)
 	{
-#ifdef SIN_MP
-		state->last_gunanim = MSG_ReadByte (&net_message);
-#else
 		state->gunindex = MSG_ReadByte (&net_message);
-#endif
 	}
 
 	if (flags & PS_WEAPONFRAME)
 	{
-#ifdef SIN_MP
-		state->last_gunframe = MSG_ReadByte (&net_message);
-#else
 		state->gunframe = MSG_ReadByte (&net_message);
-#endif
 		state->gunoffset[0] = MSG_ReadChar (&net_message)*0.25;
 		state->gunoffset[1] = MSG_ReadChar (&net_message)*0.25;
 		state->gunoffset[2] = MSG_ReadChar (&net_message)*0.25;
@@ -640,15 +750,12 @@ void CL_ParsePlayerstate (frame_t *oldframe, frame_t *newframe)
 	if (flags & PS_RDFLAGS)
 		state->rdflags = MSG_ReadByte (&net_message);
 
-	/* SiN game DLL may leave fov unset; never hand 0 to CalcFov */
-	if (state->fov < 1 || state->fov > 179)
-		state->fov = 90;
-
 	// parse stats
 	statbits = MSG_ReadLong (&net_message);
 	for (i=0 ; i<MAX_STATS ; i++)
 		if (statbits & (1<<i) )
 			state->stats[i] = MSG_ReadShort(&net_message);
+#endif
 }
 
 
@@ -764,7 +871,7 @@ void CL_ParseFrame (void)
 		int	cid = MSG_ReadShort (&net_message);
 		if (cid == 0)
 			break;
-		/* Non-empty payload not fully ported — drain rest of message. */
+		/* Non-empty payload not fully ported -- drain rest of message. */
 		Com_Printf ("CL_ParseFrame: console state %i (skip rest)\n", cid);
 		net_message.readcount = net_message.cursize;
 		return;
@@ -813,6 +920,8 @@ void CL_ParseFrame (void)
 			if (cls.disable_servercount != cl.servercount
 				&& cl.refresh_prepped)
 				SCR_EndLoadingPlaque ();	// get rid of loading plaque
+			if (cl_autocmd && cl_autocmd->string[0])
+				Cbuf_AddText (va("%s\n", cl_autocmd->string));
 		}
 		cl.sound_prepped = true;	// can start mixing ambient sounds
 	
@@ -1139,7 +1248,7 @@ void CL_AddPacketEntities (frame_t *frame)
 		ent.alpha = 0;
 
 #ifdef SIN_MP
-		/* Third-person / world held weapon (SiN gunmodelindex ≈ Q2 modelindex2). */
+		/* Third-person / world held weapon (SiN gunmodelindex = Q2 modelindex2). */
 		if (s1->gunmodelindex > 0 && s1->gunmodelindex < MAX_MODELS
 			&& cl.model_draw[s1->gunmodelindex])
 		{
@@ -1396,7 +1505,7 @@ void CL_AddViewWeapon (player_state_t *ps, player_state_t *ops)
 		int	gmi = cl_entities[cl.playernum + 1].current.gunmodelindex;
 		static int	vg_stat;
 
-		/* Networked gunmodelindex only — server may fill view_* if game left it 0. */
+		/* Networked gunmodelindex only -- server may fill view_* if game left it 0. */
 		gun.model = NULL;
 		if (gmi > 0 && gmi < MAX_MODELS)
 			gun.model = cl.model_draw[gmi];

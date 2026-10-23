@@ -292,6 +292,7 @@ extern	cvar_t	*cl_lightlevel;	// FIXME HACK
 
 extern	cvar_t	*cl_paused;
 extern	cvar_t	*cl_timedemo;
+extern	cvar_t	*cl_autocmd;
 
 extern	cvar_t	*cl_vwep;
 
