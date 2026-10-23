@@ -624,6 +624,10 @@ void SV_ClipMoveToEntities ( moveclip_t *clip )
 		trace.fraction < clip->trace.fraction)
 		{
 			trace.ent = touch;
+#ifdef SIN_MP
+			trace.intersect.valid = false;
+			VectorCopy (clip->trace.dir, trace.dir);
+#endif
 		 	if (clip->trace.startsolid)
 			{
 				clip->trace = trace;
@@ -692,6 +696,11 @@ trace_t SV_Trace (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, edict_t *p
 	// clip to world
 	clip.trace = CM_BoxTrace (start, end, mins, maxs, 0, contentmask);
 	clip.trace.ent = ge->edicts;
+#ifdef SIN_MP
+	VectorSubtract (end, start, clip.trace.dir);
+	VectorNormalize (clip.trace.dir);
+	clip.trace.intersect.valid = false;
+#endif
 	if (clip.trace.fraction == 0)
 		return clip.trace;		// blocked by the world
 

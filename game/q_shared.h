@@ -416,6 +416,7 @@ COLLISION DETECTION
 #define	MASK_WATER				(CONTENTS_WATER|CONTENTS_LAVA)
 #define	MASK_OPAQUE				(CONTENTS_SOLID|CONTENTS_LAVA)
 #define	MASK_SHOT				(CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_WINDOW|CONTENTS_DEADMONSTER|CONTENTS_SHOOTABLE)
+#define	MASK_PROJECTILE			(CONTENTS_SOLID|CONTENTS_MONSTER|CONTENTS_WINDOW|CONTENTS_DEADMONSTER|CONTENTS_SHOOTABLE|CONTENTS_FENCE)
 #else
 #define	MASK_SOLID				(CONTENTS_SOLID|CONTENTS_WINDOW)
 #define	MASK_PLAYERSOLID		(CONTENTS_SOLID|CONTENTS_PLAYERCLIP|CONTENTS_WINDOW|CONTENTS_MONSTER)
@@ -475,6 +476,19 @@ typedef struct mapsurface_s  // used internally due to name len probs //ZOID
 	char		rname[32];
 } mapsurface_t;
 
+#ifdef SIN_MP
+typedef struct
+{
+	qboolean	valid;
+	int			group;
+	int			parentgroup;
+	int			tri_num;
+	vec3_t		position;
+	vec3_t		normal;
+	float		damage_multiplier;
+} sinmdl_intersection_t;
+#endif
+
 // a trace is returned when a box is swept through the world
 typedef struct
 {
@@ -488,7 +502,8 @@ typedef struct
 	struct edict_s	*ent;		// not set by CM_*() functions
 #ifdef SIN_MP
 	/* Steam gamex86 copies 0x1c dwords (112 bytes) from gi.trace results. */
-	byte		sin_pad[56];
+	vec3_t		dir;		// 12 bytes: direction of the trace
+	sinmdl_intersection_t intersect; // 44 bytes: polygon intersection data
 #endif
 } trace_t;
 
