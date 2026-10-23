@@ -164,6 +164,55 @@ void SVC_Status (void)
 
 /*
 ================
+SVC_GameSpyStatus
+
+Raw Gamespy \\status\\ reply (no 0xffffffff header) for masters like
+master.shavargo.com / kingpin_master_server.
+================
+*/
+void SVC_GameSpyStatus (void)
+{
+	char		info[1400];
+	char		*gn;
+	int			i, count, gameport;
+
+	count = 0;
+	for (i = 0; i < maxclients->value; i++)
+		if (svs.clients[i].state >= cs_connected)
+			count++;
+
+	gameport = (int)Cvar_VariableValue ("port");
+	if (!gameport)
+		gameport = PORT_SERVER;
+
+	gn = (gamename && gamename->string[0]) ? gamename->string : "sin";
+
+	Com_sprintf (info, sizeof (info),
+		"\\gamename\\%s"
+		"\\gamever\\sin_ded"
+		"\\hostname\\%s"
+		"\\hostport\\%i"
+		"\\mapname\\%s"
+		"\\gametype\\deathmatch"
+		"\\numplayers\\%i"
+		"\\maxplayers\\%i"
+		"\\gamemode\\openplaying"
+		"\\protocol\\%i"
+		"\\deathmatch\\1"
+		"\\final\\\\queryid\\1.1",
+		gn,
+		hostname->string,
+		gameport,
+		sv.name[0] ? sv.name : "unknown",
+		count,
+		(int)maxclients->value,
+		PROTOCOL_VERSION);
+
+	NET_SendPacket (NS_SERVER, (int)strlen (info), info, net_from);
+}
+
+/*
+================
 SVC_Ack
 
 ================
@@ -719,6 +768,24 @@ void SV_ReadPackets (void)
 			continue;
 		}
 
+		/*
+		 * Raw Gamespy queries (no OOB header). Master replies to our
+		 * \\heartbeat\\ with \\status\\ on this same game port.
+		 */
+		if (net_message.cursize >= 8 && net_message.data[0] == '\\')
+		{
+			if (!strncmp ((char *)net_message.data, "\\status\\", 8))
+			{
+				SVC_GameSpyStatus ();
+				continue;
+			}
+			if (!strncmp ((char *)net_message.data, "\\ack\\", 5))
+			{
+				Com_Printf ("Gamespy ack from %s\n", NET_AdrToString (net_from));
+				continue;
+			}
+		}
+
 		// read the qport out of the message so we can fix up
 		// stupid address translating routers
 		MSG_BeginReading (&net_message);
@@ -935,9 +1002,6 @@ void SV_Frame (int msec)
 //============================================================================
 
 /*
-================
-Master_Heartbeat
-
 /*
 ================
 Master_Init
@@ -993,6 +1057,27 @@ let it know we are alive, and log information
 ================
 */
 #define	HEARTBEAT_SECONDS	300
+
+/*
+ * Gamespy-style heartbeat for kingpin_master_server / gslist:
+ *   \heartbeat\<gameport>\gamename\sin
+ * (raw UDP — no Quake II 0xffffffff OOB prefix)
+ */
+static void Master_SendGameSpyHeartbeat (netadr_t to)
+{
+	char		buf[128];
+	char		*gn;
+	int			gameport;
+
+	gameport = (int)Cvar_VariableValue ("port");
+	if (!gameport)
+		gameport = PORT_SERVER;
+
+	gn = (gamename && gamename->string[0]) ? gamename->string : "sin";
+	Com_sprintf (buf, sizeof (buf), "\\heartbeat\\%i\\gamename\\%s", gameport, gn);
+	NET_SendPacket (NS_SERVER, (int)strlen (buf), buf, to);
+}
+
 void Master_Heartbeat (void)
 {
 	char		*string;
@@ -1022,6 +1107,9 @@ void Master_Heartbeat (void)
 		if (master_adr[i].port)
 		{
 			Com_Printf ("Sending heartbeat to %s\n", NET_AdrToString (master_adr[i]));
+			/* Primary: Gamespy (master.shavargo.com / kingpin_master_server) */
+			Master_SendGameSpyHeartbeat (master_adr[i]);
+			/* Also classic Quake II OOB for other masters */
 			Netchan_OutOfBandPrint (NS_SERVER, master_adr[i], "heartbeat\n%s", string);
 		}
 }
@@ -1147,9 +1235,7 @@ void SV_Init (void)
 	sv_master2 = Cvar_Get ("sv_master2", "", CVAR_ARCHIVE);
 	sv_master3 = Cvar_Get ("sv_master3", "", CVAR_ARCHIVE);
 	sv_master4 = Cvar_Get ("sv_master4", "", CVAR_ARCHIVE);
-#ifdef SIN_MP
 	gamename = Cvar_Get ("gamename", "sin", CVAR_SERVERINFO);
-#endif
 
 	sv_reconnect_limit = Cvar_Get ("sv_reconnect_limit", "3", CVAR_ARCHIVE);
 
