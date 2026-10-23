@@ -571,6 +571,7 @@ qboolean VID_LoadRefresh( char *name )
 {
 	refimport_t	ri;
 	GetRefAPI_t	GetRefAPI;
+	char		dll_name[MAX_OSPATH];
 	
 	if ( reflib_active )
 	{
@@ -604,6 +605,8 @@ qboolean VID_LoadRefresh( char *name )
 	ri.Vid_MenuInit = VID_MenuInit;
 	ri.Vid_NewWindow = VID_NewWindow;
 
+	strncpy (dll_name, name, sizeof(dll_name)-1);
+	dll_name[sizeof(dll_name)-1] = 0;
 	if ( ( GetRefAPI = (void *) GetProcAddress( reflib_library, "GetRefAPI" ) ) == 0 )
 		Com_Error( ERR_FATAL, "GetProcAddress failed on %s", name );
 
@@ -612,7 +615,8 @@ qboolean VID_LoadRefresh( char *name )
 	if (re.api_version != API_VERSION)
 	{
 		VID_FreeReflib ();
-		Com_Error (ERR_FATAL, "%s has incompatible api_version", name);
+		Com_Printf ("%s has incompatible api_version (%d, expected %d)\n", dll_name, re.api_version, API_VERSION);
+		return false;
 	}
 
 	if ( re.Init( global_hInstance, MainWndProc ) == -1 )
@@ -685,9 +689,9 @@ void VID_CheckChanges (void)
 		Com_sprintf( name, sizeof(name), "ref_%s.dll", vid_ref->string );
 		if ( !VID_LoadRefresh( name ) )
 		{
-			if ( strcmp (vid_ref->string, "soft") == 0 )
-				Com_Error (ERR_FATAL, "Couldn't fall back to software refresh!");
-			Cvar_Set( "vid_ref", "soft" );
+			if ( strcmp (vid_ref->string, "gl") == 0 )
+				Com_Error (ERR_FATAL, "Couldn't load ref_gl.dll! Please ensure the matching ref_gl.dll is in the same directory.");
+			Cvar_Set( "vid_ref", "gl" );
 
 			/*
 			** drop the console if we fail to load a refresh
@@ -721,7 +725,7 @@ VID_Init
 void VID_Init (void)
 {
 	/* Create the video variables so we know how to start the graphics drivers */
-	vid_ref = Cvar_Get ("vid_ref", "soft", CVAR_ARCHIVE);
+	vid_ref = Cvar_Get ("vid_ref", "gl", CVAR_ARCHIVE);
 	vid_xpos = Cvar_Get ("vid_xpos", "3", CVAR_ARCHIVE);
 	vid_ypos = Cvar_Get ("vid_ypos", "22", CVAR_ARCHIVE);
 	vid_fullscreen = Cvar_Get ("vid_fullscreen", "0", CVAR_ARCHIVE);
