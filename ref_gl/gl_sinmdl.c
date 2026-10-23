@@ -23,7 +23,10 @@ typedef struct
 	char	path[MAX_QPATH];
 	char	sbm[MAX_QPATH];
 	char	skin[MAX_QPATH];
+	int		num_skins;
+	char	skins[SINMDL_MAX_SKINS][MAX_QPATH];
 	float	scale;
+	vec3_t	origin;
 	int		num_anims;
 	sin_def_anim_t	anims[SINMDL_MAX_ANIMS];
 } sin_def_parse_t;
@@ -120,6 +123,23 @@ sin_parse_def (const char *text, int len, sin_def_parse_t *out)
 				out->scale = 1.f;
 			continue;
 		}
+		if (!Q_strcasecmp (tok, "origin") && rest[0])
+		{
+			char	*r = rest;
+
+			out->origin[0] = (float)atof (r);
+			while (*r && *r != ' ' && *r != '\t') r++;
+			while (*r == ' ' || *r == '\t') r++;
+			if (*r)
+			{
+				out->origin[1] = (float)atof (r);
+				while (*r && *r != ' ' && *r != '\t') r++;
+				while (*r == ' ' || *r == '\t') r++;
+				if (*r)
+					out->origin[2] = (float)atof (r);
+			}
+			continue;
+		}
 		if (sin_endswith (tok, ".sbm") && !out->sbm[0])
 		{
 			Com_sprintf (out->sbm, sizeof (out->sbm), "%s", tok);
@@ -149,10 +169,22 @@ sin_parse_def (const char *text, int len, sin_def_parse_t *out)
 			Com_sprintf (a->file, sizeof (a->file), "%s", tok);
 			continue;
 		}
-		if (sin_endswith (rest, ".tga") && !out->skin[0])
-			Com_sprintf (out->skin, sizeof (out->skin), "%s", rest);
-		else if (sin_endswith (tok, ".tga") && !out->skin[0])
-			Com_sprintf (out->skin, sizeof (out->skin), "%s", tok);
+		if (sin_endswith (rest, ".tga"))
+		{
+			if (out->num_skins < SINMDL_MAX_SKINS)
+				Com_sprintf (out->skins[out->num_skins++], sizeof (out->skins[0]), "%s", rest);
+			if (!out->skin[0])
+				Com_sprintf (out->skin, sizeof (out->skin), "%s", rest);
+			continue;
+		}
+		else if (sin_endswith (tok, ".tga"))
+		{
+			if (out->num_skins < SINMDL_MAX_SKINS)
+				Com_sprintf (out->skins[out->num_skins++], sizeof (out->skins[0]), "%s", tok);
+			if (!out->skin[0])
+				Com_sprintf (out->skin, sizeof (out->skin), "%s", tok);
+			continue;
+		}
 	}
 }
 
@@ -164,13 +196,13 @@ sin_load_file (const char *path, byte **buf, int *len)
 }
 
 static void
-sin_decode_into (sinmdl_anim_t *a, int nxyz, int frame, vec3_t *out)
+sin_decode_into (sinmdl_t *m, sinmdl_anim_t *a, int nxyz, int frame, vec3_t *out)
 {
 	int			i;
 	float		sx, sy, sz, tx, ty, tz;
 	const byte	*verts;
 
-	if (!a || nxyz < 1 || a->nframes < 1 || !a->frame_verts)
+	if (!m || !a || nxyz < 1 || a->nframes < 1 || !a->frame_verts)
 		return;
 	if (frame < 0)
 		frame = 0;
@@ -180,9 +212,9 @@ sin_decode_into (sinmdl_anim_t *a, int nxyz, int frame, vec3_t *out)
 	sx = a->frame_scale[frame * 3 + 0];
 	sy = a->frame_scale[frame * 3 + 1];
 	sz = a->frame_scale[frame * 3 + 2];
-	tx = a->frame_translate[frame * 3 + 0];
-	ty = a->frame_translate[frame * 3 + 1];
-	tz = a->frame_translate[frame * 3 + 2];
+	tx = a->frame_translate[frame * 3 + 0] + m->def_origin[0];
+	ty = a->frame_translate[frame * 3 + 1] + m->def_origin[1];
+	tz = a->frame_translate[frame * 3 + 2] + m->def_origin[2];
 	verts = a->frame_verts + frame * nxyz * 4;
 
 	for (i = 0; i < nxyz; i++)
@@ -221,13 +253,13 @@ sin_setup_pose (sinmdl_t *m, int anim, int frame, int oldframe, float backlerp)
 
 	if (backlerp < 0.001f || oldframe == frame || !m->xyz_old)
 	{
-		sin_decode_into (a, m->nxyz, frame, m->xyz);
+		sin_decode_into (m, a, m->nxyz, frame, m->xyz);
 	}
 	else
 	{
 		frontlerp = 1.f - backlerp;
-		sin_decode_into (a, m->nxyz, oldframe, m->xyz_old);
-		sin_decode_into (a, m->nxyz, frame, m->xyz);
+		sin_decode_into (m, a, m->nxyz, oldframe, m->xyz_old);
+		sin_decode_into (m, a, m->nxyz, frame, m->xyz);
 		for (i = 0; i < m->nxyz; i++)
 		{
 			m->xyz[i][0] = m->xyz_old[i][0] * backlerp + m->xyz[i][0] * frontlerp;
@@ -242,7 +274,7 @@ sin_setup_pose (sinmdl_t *m, int anim, int frame, int oldframe, float backlerp)
 
 static qboolean
 sin_load_one_sam (const byte *sam, int len, int nxyz, sinmdl_anim_t *a,
-	const char *label, vec3_t mins, vec3_t maxs, qboolean update_bounds)
+	const char *label, const vec3_t def_origin, vec3_t mins, vec3_t maxs, qboolean update_bounds)
 {
 	const unsigned	*dw;
 	int				nv, nframes, fofs, f, i;
@@ -305,9 +337,9 @@ sin_load_one_sam (const byte *sam, int len, int nxyz, sinmdl_anim_t *a,
 			continue;
 		for (i = 0; i < nv; i++)
 		{
-			float	x = (float)src[i * 4 + 0] * sx + tx;
-			float	y = (float)src[i * 4 + 1] * sy + ty;
-			float	z = (float)src[i * 4 + 2] * sz + tz;
+			float	x = (float)src[i * 4 + 0] * sx + tx + def_origin[0];
+			float	y = (float)src[i * 4 + 1] * sy + ty + def_origin[1];
+			float	z = (float)src[i * 4 + 2] * sz + tz + def_origin[2];
 
 			if (x < mins[0]) mins[0] = x;
 			if (y < mins[1]) mins[1] = y;
@@ -455,10 +487,6 @@ void Mod_LoadSinDef (model_t *mod, void *buffer)
 	}
 
 	sin_join (sbm_path, sizeof (sbm_path), parsed.path, parsed.sbm);
-	if (parsed.skin[0])
-		sin_join (skin_path, sizeof (skin_path), parsed.path, parsed.skin);
-	else
-		skin_path[0] = 0;
 
 	if (!sin_load_file (sbm_path, &sbm_buf, &sbm_len))
 	{
@@ -473,6 +501,9 @@ void Mod_LoadSinDef (model_t *mod, void *buffer)
 	}
 	ri.FS_FreeFile (sbm_buf);
 
+	m->def_scale = parsed.scale;
+	VectorCopy (parsed.origin, m->def_origin);
+
 	mins[0] = mins[1] = mins[2] = 1e9f;
 	maxs[0] = maxs[1] = maxs[2] = -1e9f;
 
@@ -485,7 +516,7 @@ void Mod_LoadSinDef (model_t *mod, void *buffer)
 			continue;
 		}
 		if (!sin_load_one_sam (sam_buf, sam_len, m->nxyz, &m->anims[m->num_anims],
-				parsed.anims[i].label, mins, maxs, true))
+				parsed.anims[i].label, m->def_origin, mins, maxs, true))
 		{
 			ri.Con_Printf (PRINT_DEVELOPER, "Mod_LoadSinDef: bad SAM %s\n", sam_path);
 			ri.FS_FreeFile (sam_buf);
@@ -501,7 +532,6 @@ void Mod_LoadSinDef (model_t *mod, void *buffer)
 		return;
 	}
 
-	m->def_scale = parsed.scale;
 	m->center[0] = (mins[0] + maxs[0]) * 0.5f;
 	m->center[1] = (mins[1] + maxs[1]) * 0.5f;
 	m->center[2] = (mins[2] + maxs[2]) * 0.5f;
@@ -528,13 +558,26 @@ void Mod_LoadSinDef (model_t *mod, void *buffer)
 	if (mod->radius < 8.f)
 		mod->radius = 8.f;
 
-	if (skin_path[0])
+	m->num_skins = 0;
+	for (i = 0; i < parsed.num_skins && i < SINMDL_MAX_SKINS; i++)
+	{
+		sin_join (skin_path, sizeof (skin_path), parsed.path, parsed.skins[i]);
+		m->skins[m->num_skins] = GL_FindImage (skin_path, it_skin);
+		if (m->skins[m->num_skins])
+			m->num_skins++;
+	}
+	if (m->num_skins > 0)
+		m->skin = m->skins[0];
+	else if (parsed.skin[0])
+	{
+		sin_join (skin_path, sizeof (skin_path), parsed.path, parsed.skin);
 		m->skin = GL_FindImage (skin_path, it_skin);
+	}
 
 	sin_setup_pose (m, sin_pick_default_anim (m), 0, 0, 0.f);
 
-	ri.Con_Printf (PRINT_ALL, "Mod_LoadSinDef: %s → %s (%d verts, %d anims, scale=%.2f)%s\n",
-		mod->name, sbm_path, m->nxyz, m->num_anims, m->def_scale,
+	ri.Con_Printf (PRINT_ALL, "Mod_LoadSinDef: %s -> %s (%d verts, %d anims, %d skins, scale=%.2f)%s\n",
+		mod->name, sbm_path, m->nxyz, m->num_anims, m->num_skins, m->def_scale,
 		m->skin ? "" : " [no skin]");
 }
 
@@ -545,6 +588,8 @@ void R_DrawSinModel (entity_t *e)
 	int			s, t, c, anim, fr, ofr;
 	float		backlerp;
 	static int	vg_draw_log;
+	qboolean	weapon_fov_adjusted;
+	image_t		*drawskin;
 
 	if (!currentmodel)
 		return;
@@ -608,29 +653,38 @@ void R_DrawSinModel (entity_t *e)
 	if (e->flags & RF_DEPTHHACK)
 		qglDepthRange (gldepthmin, gldepthmin + 0.3 * (gldepthmax - gldepthmin));
 
-	qglPushMatrix ();
-	R_RotateForEntity (e);
+	weapon_fov_adjusted = false;
+	if ((e->flags & RF_WEAPONMODEL) && (r_newrefdef.fov_x > 90.0f))
+	{
+		qglMatrixMode (GL_PROJECTION);
+		qglPushMatrix ();
+		qglLoadIdentity ();
+		MYgluPerspective (75.0, (float)r_newrefdef.width / (float)r_newrefdef.height, 4, 4096);
+		qglMatrixMode (GL_MODELVIEW);
+		qglCullFace (GL_FRONT);
+		weapon_fov_adjusted = true;
+	}
 
-	/*
-	 * SiN SAM viewguns are ~100–180u and off-center. At the eye that clips
-	 * into shards. Center then fit weapon models to ~14u radius.
-	 */
+	qglPushMatrix ();
+	e->angles[PITCH] = -e->angles[PITCH];
+	e->angles[ROLL] = -e->angles[ROLL];
+	R_RotateForEntity (e);
+	e->angles[PITCH] = -e->angles[PITCH];
+	e->angles[ROLL] = -e->angles[ROLL];
+
 	{
 		float	sc = (m && m->def_scale > 0.f) ? m->def_scale : 1.f;
-
-		if ((e->flags & RF_WEAPONMODEL) && m && m->radius > 1.f)
-		{
-			float	fit = 14.f / (m->radius * (sc > 0.f ? sc : 1.f));
-
-			qglTranslatef (-m->center[0] * sc, -m->center[1] * sc, -m->center[2] * sc);
-			/* Nudge into view (Quake view space after entity rotate). */
-			qglTranslatef (4.f, 0.f, -2.f);
-			if (fit < 1.f)
-				sc *= fit;
-		}
 		if (sc != 1.f)
 			qglScalef (sc, sc, sc);
 	}
+
+	drawskin = NULL;
+	if (e->skin)
+		drawskin = e->skin;
+	else if (m && e->skinnum >= 0 && e->skinnum < m->num_skins && m->skins[e->skinnum])
+		drawskin = m->skins[e->skinnum];
+	else if (m && m->skin)
+		drawskin = m->skin;
 
 	if (!m || m->nxyz < 1 || m->nsurfs < 1 || !m->xyz)
 	{
@@ -671,9 +725,9 @@ void R_DrawSinModel (entity_t *e)
 	else
 	{
 		qglColor3fv (shadelight);
-		if (m->skin)
+		if (drawskin)
 		{
-			GL_Bind (m->skin->texnum);
+			GL_Bind (drawskin->texnum);
 			qglEnable (GL_TEXTURE_2D);
 		}
 		else
@@ -694,19 +748,27 @@ void R_DrawSinModel (entity_t *e)
 					unsigned short	vi = idx[t * 6 + c * 2 + 0];
 					unsigned short	si = idx[t * 6 + c * 2 + 1];
 
-					if (m->skin && m->st)
+					if (drawskin && m->st)
 						qglTexCoord2f (m->st[si * 2], m->st[si * 2 + 1]);
 					qglVertex3fv (m->xyz[vi]);
 				}
 			}
 		}
 		qglEnd ();
-		if (!m->skin)
+		if (!drawskin)
 			qglEnable (GL_TEXTURE_2D);
 	}
 
 	qglColor3f (1, 1, 1);
 	qglPopMatrix ();
+
+	if (weapon_fov_adjusted)
+	{
+		qglMatrixMode (GL_PROJECTION);
+		qglPopMatrix ();
+		qglMatrixMode (GL_MODELVIEW);
+		qglCullFace (GL_FRONT);
+	}
 
 	if (e->flags & RF_DEPTHHACK)
 		qglDepthRange (gldepthmin, gldepthmax);
