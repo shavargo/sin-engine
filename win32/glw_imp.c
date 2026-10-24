@@ -593,8 +593,7 @@ void GLimp_EndFrame (void)
 
 	if ( stricmp( gl_drawbuffer->string, "GL_BACK" ) == 0 )
 	{
-		if ( !qwglSwapBuffers( glw_state.hDC ) )
-			ri.Sys_Error( ERR_FATAL, "GLimp_EndFrame() - SwapBuffers() failed!\n" );
+		qwglSwapBuffers( glw_state.hDC );
 	}
 }
 

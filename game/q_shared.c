@@ -1422,3 +1422,132 @@ void Info_SetValueForKey (char *s, char *key, char *value)
 //====================================================================
 
 
+
+
+void AnglesToMat (float ang[3], float mat[3][3])
+{
+	AngleVectors(ang, mat[0], mat[1], mat[2]);
+	VectorNegate(mat[1], mat[1] );
+}
+
+float Sinatof (const char *text)
+{
+	if (text && text[0])
+		return (float)atof( text );
+	return 0;
+}
+
+const char* COM_GetToken( const char** data_p, qboolean crossline )
+{
+	int c;
+	int len;
+	const char* data;
+
+	data = *data_p;
+	len = 0;
+	com_token[0] = 0;
+
+	if( !data )
+	{
+		*data_p = NULL;
+		return "";
+	}
+
+skipwhite:
+	while( ( c = *data ) <= ' ' )
+	{
+		if( c == '\n' && !crossline )
+		{
+			*data_p = data;
+			return "";
+		}
+		if( c == 0 )
+		{
+			*data_p = NULL;
+			return "";
+		}
+		data++;
+	}
+
+	if( c == '/' && data[1] == '/' )
+	{
+		while( *data && *data != '\n' )
+			data++;
+		goto skipwhite;
+	}
+
+	if( c == '/' && data[1] == '*' )
+	{
+		data++;
+		while( *data )
+		{
+			if( ( *( data - 1 ) == '*' ) && ( *data == '/' ) )
+				break;
+			data++;
+		}
+		while( *data && *data != '\n' )
+			data++;
+		goto skipwhite;
+	}
+
+	if( c == '\"' )
+	{
+		data++;
+		while( 1 )
+		{
+			c = *data++;
+			if( c == '\\' && *data == '\"' )
+			{
+				if( len < MAX_STRING_CHARS )
+				{
+					com_token[len] = '\"';
+					len++;
+				}
+				data++;
+			}
+			else if( c == '\"' || !c )
+			{
+				com_token[len] = 0;
+				*data_p = data;
+				return com_token;
+			}
+			else if( len < MAX_STRING_CHARS )
+			{
+				if( c == '\\' && *data == 'n' )
+				{
+					com_token[len] = '\n';
+					data++;
+				}
+				else
+				{
+					com_token[len] = c;
+				}
+				len++;
+			}
+		}
+	}
+
+	do
+	{
+		if( len < MAX_STRING_CHARS )
+		{
+			com_token[len] = c;
+			len++;
+		}
+		data++;
+		c = *data;
+	}
+	while( c > 32 );
+
+	if( len == MAX_STRING_CHARS )
+		len = 0;
+	com_token[len] = 0;
+
+	*data_p = data;
+	return com_token;
+}
+
+const char* SIN_Parse( const char** data_p )
+{
+	return COM_GetToken( data_p, true );
+}

@@ -749,6 +749,13 @@ void	FS_Read (void *buffer, int len, FILE *f);
 void	FS_FreeFile (void *buffer);
 
 void	FS_CreatePath (char *path);
+void	FS_InitPlayerdir (void);
+const char *FS_RelativePlayerdir (void);
+const char *FS_Playerdir (void);
+void	FS_FreeList (const char **list, int n);
+const char **FS_FindFiles (const char *path, const char *pattern, int *numfiles);
+extern int map_sequence_number;
+extern cvar_t *game2015;
 
 
 /*
@@ -852,6 +859,7 @@ void CL_Init (void);
 void CL_Drop (void);
 void CL_Shutdown (void);
 void CL_Frame (int msec);
+void CL_CheckAutoLogon (void);
 void Con_Print (char *text);
 void SCR_BeginLoadingPlaque (void);
 

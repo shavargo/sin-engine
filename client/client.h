@@ -40,9 +40,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "keys.h"
 #include "console.h"
 #include "cdaudio.h"
+#include "console3d.h"
 
 //=============================================================================
 
+typedef struct inventory_s {
+	int icon;
+	int amount;
+} inventory_t;
 typedef struct
 {
 	qboolean		valid;			// cleared if delta parsing was invalid
@@ -139,7 +144,7 @@ typedef struct
 	// transient data from server
 	//
 	char		layout[1024];		// general 2D overlay
-	int			inventory[MAX_ITEMS];
+	inventory_t	inventory[MAX_ITEMS];
 
 	//
 	// non-gameserver infornamtion
@@ -171,6 +176,7 @@ typedef struct
 
 	clientinfo_t	clientinfo[MAX_CLIENTS];
 	clientinfo_t	baseclientinfo;
+	int				map_sequence_number;
 } client_state_t;
 
 extern	client_state_t	cl;
@@ -200,7 +206,7 @@ typedef enum {
 	dl_single
 } dltype_t;		// download type
 
-typedef enum {key_game, key_console, key_message, key_menu} keydest_t;
+typedef enum {key_game, key_console, key_message, key_menu, key_console3d, key_menu3d} keydest_t;
 
 typedef struct
 {
@@ -210,6 +216,7 @@ typedef struct
 	int			framecount;
 	int			realtime;			// always increasing, no clamping, etc
 	float		frametime;			// seconds since last frame
+	float		renderFrametime;
 
 // screen rendering information
 	float		disable_screen;		// showing loading plaque between levels
@@ -240,6 +247,12 @@ typedef struct
 	qboolean	demorecording;
 	qboolean	demowaiting;	// don't record until a non-delta message is received
 	FILE		*demofile;
+	char		*hud;
+	struct console3d_s	*currentconsole;
+	struct console3d_s	*mainconsole;
+	struct console3d_s	*genconsole;
+	float		scaleSensitivity;
+	qboolean	intermission_active;
 } client_static_t;
 
 extern client_static_t	cls;
@@ -295,6 +308,17 @@ extern	cvar_t	*cl_timedemo;
 extern	cvar_t	*cl_autocmd;
 
 extern	cvar_t	*cl_vwep;
+extern	cvar_t	*sindemo;
+extern	cvar_t	*cl_skiplogon;
+extern	cvar_t	*cfg_default;
+extern	cvar_t	*vid_ref;
+extern	cvar_t	*vid_gamma;
+extern const char	*cl_status_string1;
+extern const char	*cl_status_string2;
+extern int			cl_status_current;
+extern int			cl_status_total;
+extern cvar_t		*game2015;
+trace_t CL_GenericTrace (vec3_t start, const vec3_t mins, const vec3_t maxs, vec3_t end, int contents_mask, qboolean fulltrace, int passent);
 
 typedef struct
 {
@@ -322,7 +346,7 @@ extern	netadr_t	net_from;
 extern	sizebuf_t	net_message;
 
 void DrawString (int x, int y, char *s);
-void DrawAltString (int x, int y, char *s);	// toggle high bit
+void DrawAltString (int x, int y, const char *s);
 qboolean	CL_CheckOrDownloadFile (char *filename);
 
 void CL_AddNetgraph (void);
@@ -562,7 +586,13 @@ void CL_TrapParticles (entity_t *ent);
 //
 // menus
 //
-void M_Init (void);
+void MENU_Init (void);
+void CON_Init (void);
+void MENU_Draw (void);
+void MENU_DrawGeneric (void);
+void CONSOLE_CheckResize (void);
+void CONSOLE_DrawLoadingStatus (void);
+void CONSOLE_DrawGlobalLayout (void);
 void M_Keydown (int key);
 void M_Draw (void);
 void M_Menu_Main_f (void);

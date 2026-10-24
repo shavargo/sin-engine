@@ -155,7 +155,7 @@ void SCR_DrawDebugGraph (void)
 	x = scr_vrect.x;
 	y = scr_vrect.y+scr_vrect.height;
 	re.DrawFill (x, y-scr_graphheight->value,
-		w, scr_graphheight->value, 8);
+		w, scr_graphheight->value, 0.5f, 0.5f, 0.5f);
 
 	for (a=0 ; a<w ; a++)
 	{
@@ -167,7 +167,7 @@ void SCR_DrawDebugGraph (void)
 		if (v < 0)
 			v += scr_graphheight->value * (1+(int)(-v/scr_graphheight->value));
 		h = (int)v % (int)scr_graphheight->value;
-		re.DrawFill (x+w-1-a, y - h, 1,	h, color);
+		re.DrawFill (x+w-1-a, y - h, 1,	h, (float)color, (float)color, (float)color);
 	}
 }
 
@@ -527,15 +527,19 @@ void SCR_DrawConsole (void)
 	Con_CheckResize ();
 	
 	if (cls.state == ca_disconnected || cls.state == ca_connecting)
-	{	// forced full screen console
-		Con_DrawConsole (1.0);
+	{
+		if (cls.key_dest == key_console || !cls.currentconsole)
+		{
+			Con_DrawConsole (1.0);
+			return;
+		}
 		return;
 	}
 
 	if (cls.state != ca_active || !cl.refresh_prepped)
 	{	// connected, but can't render
 		Con_DrawConsole (0.5);
-		re.DrawFill (0, viddef.height/2, viddef.width, viddef.height/2, 0);
+		re.DrawFill (0, viddef.height/2, viddef.width, viddef.height/2, 0.0f, 0.0f, 0.0f);
 		return;
 	}
 
@@ -1341,7 +1345,9 @@ void SCR_UpdateScreen (void)
 					re.CinematicSetPalette(NULL);
 					cl.cinematicpalette_active = false;
 				}
-				M_Draw ();
+				MENU_Draw ();
+				MENU_DrawGeneric ();
+				CONSOLE_DrawGlobalLayout ();
 //				re.EndFrame();
 //				return;
 			}
@@ -1398,9 +1404,11 @@ void SCR_UpdateScreen (void)
 
 			SCR_DrawPause ();
 
-			SCR_DrawConsole ();
+			MENU_Draw ();
+			MENU_DrawGeneric ();
+			CONSOLE_DrawGlobalLayout ();
 
-			M_Draw ();
+			SCR_DrawConsole ();
 
 			SCR_DrawLoading ();
 		}

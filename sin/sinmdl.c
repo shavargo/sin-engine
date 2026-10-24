@@ -1197,3 +1197,13 @@ qboolean SINMDL_GetBoneTransform (int modelindex, int groupindex, int tri_num,
 #endif /* !REF_GL */
 
 #endif /* SIN_MP */
+
+
+void SINMDL_Anim_CalculateBounds( int defhandle, int animnum, float scale, vec3_t mins, vec3_t maxs )
+{
+	(void)defhandle;
+	(void)animnum;
+	(void)scale;
+	VectorSet(mins, -16, -16, -24);
+	VectorSet(maxs, 16, 16, 32);
+}

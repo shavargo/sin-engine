@@ -133,6 +133,9 @@ extern char		*keybindings[256];
 extern	int		key_repeats[256];
 
 extern	int	anykeydown;
+extern qboolean	keydown[256];
+extern char	*keydoublebindings[256];
+extern qboolean	chat_talk;
 extern char chat_buffer[];
 extern	int chat_bufferlen;
 extern	qboolean	chat_team;

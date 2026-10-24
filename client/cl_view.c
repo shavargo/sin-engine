@@ -37,6 +37,10 @@ cvar_t		*cl_testlights;
 cvar_t		*cl_testblend;
 
 cvar_t		*cl_stats;
+const char	*cl_status_string1 = "";
+const char	*cl_status_string2 = "";
+int			cl_status_current = 0;
+int			cl_status_total = 0;
 
 
 int			r_numdlights;

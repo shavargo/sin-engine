@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "qcommon.h"
+#include "glob.h"
 
 // define this to dissalow any data but the demo pak file
 //#define	NO_ADDONS
@@ -122,6 +123,20 @@ FS_CreatePath
 Creates any directories needed to store the given filename
 ============
 */
+#ifdef _WIN32
+#include <windows.h>
+static qboolean FS_IsDirectory(const char *path) {
+	DWORD result = GetFileAttributesA(path);
+	return (result != INVALID_FILE_ATTRIBUTES && (result & FILE_ATTRIBUTE_DIRECTORY));
+}
+#else
+#include <sys/stat.h>
+static qboolean FS_IsDirectory(const char *path) {
+	struct stat st;
+	return (stat(path, &st) == 0 && S_ISDIR(st.st_mode));
+}
+#endif
+
 void	FS_CreatePath (char *path)
 {
 	char	*ofs;
@@ -414,12 +429,14 @@ int FS_LoadFile (char *path, void **buffer)
 		return len;
 	}
 
-	buf = Z_Malloc(len);
+	buf = Z_Malloc(len + 1);
 	*buffer = buf;
 
 	FS_Read (buf, len, h);
 
 	fclose (h);
+
+	buf[len] = 0;
 
 	return len;
 }
@@ -432,6 +449,8 @@ FS_FreeFile
 */
 void FS_FreeFile (void *buffer)
 {
+	if (!buffer)
+		return;
 	Z_Free (buffer);
 }
 
@@ -586,8 +605,17 @@ void FS_AddGameDirectory (char *dir)
 		search->next = fs_searchpaths;
 		fs_searchpaths = search;		
 	}
-
-
+#if defined(_WIN32) || defined(__linux__)
+	/* Support SiN Steam / localized assets: dir/locale/en */
+	Com_sprintf (pakfile, sizeof(pakfile), "%s/locale/en", dir);
+	if (FS_IsDirectory(pakfile)) {
+		search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
+		strncpy (search->filename, pakfile, sizeof(search->filename)-1);
+		search->filename[sizeof(search->filename)-1] = 0;
+		search->next = fs_searchpaths;
+		fs_searchpaths = search;
+	}
+#endif
 }
 
 /*
@@ -916,7 +944,191 @@ void FS_InitFilesystem (void)
 	fs_gamedirvar = Cvar_Get ("game", "", CVAR_LATCH|CVAR_SERVERINFO);
 	if (fs_gamedirvar->string[0])
 		FS_SetGamedir (fs_gamedirvar->string);
+
+	FS_InitPlayerdir();
 }
 
 
 
+
+
+static cvar_t *cl_player;
+static char fs_relativeplayerdir[MAX_OSPATH];
+static char fs_playerdir[MAX_OSPATH];
+
+void FS_InitPlayerdir (void)
+{
+	char path[MAX_OSPATH];
+	char playerpath[MAX_OSPATH];
+	int i;
+
+	cl_player = Cvar_Get ("player", "blade", 0);
+	strcpy (playerpath, cl_player->string);
+
+	for (i = 0; i < (int)strlen(playerpath); i++)
+	{
+		if (playerpath[i] == ' ')
+			playerpath[i] = '_';
+	}
+
+	Com_sprintf (fs_relativeplayerdir, sizeof(fs_relativeplayerdir), "players/%s", playerpath);
+	Com_sprintf (fs_playerdir, sizeof(fs_playerdir), "%s/%s", FS_Gamedir(), fs_relativeplayerdir);
+	Com_sprintf (path, sizeof(path), "%s/", fs_playerdir);
+	FS_CreatePath (path);
+}
+
+const char *FS_RelativePlayerdir (void)
+{
+	return fs_relativeplayerdir;
+}
+
+const char *FS_Playerdir (void)
+{
+	return fs_playerdir;
+}
+
+void FS_FreeList (const char **list, int n)
+{
+	int i;
+	if (list) {
+		for (i = 0; i < n; i++) {
+			if (list[i]) {
+				free((void *)list[i]);
+				list[i] = 0;
+			}
+		}
+		free((void *)list);
+	}
+}
+
+#define MAX_FIND_FILES 1024
+
+const char **FS_FindFiles (const char *path, const char *pattern, int *numfiles)
+{
+	const char **list = NULL;
+	searchpath_t *search;
+	const char *ptr;
+	pack_t *pak;
+	int i, j, len, pathlen;
+	qboolean found;
+	char searchpath[MAX_OSPATH];
+	char globpattern[32];
+
+	if (!path || !pattern || !numfiles)
+		return NULL;
+
+	*numfiles = 0;
+
+	len = (int)strlen( path );
+	for (i = 0; i < len; i++)
+	{
+		if (path[i] == '\\')
+			searchpath[i] = '/';
+		else
+			searchpath[i] = path[i];
+	}
+
+	if (i > 0 && searchpath[i-1] != '/')
+	{
+		searchpath[i] = '/';
+		i++;
+	}
+
+	searchpath[i] = '\0';
+	pathlen = i;
+
+	strncpy(globpattern, pattern, sizeof(globpattern)-1);
+	globpattern[sizeof(globpattern)-1] = 0;
+	if (!strcmp(globpattern, "*.*"))
+		strcpy(globpattern, "*");
+
+	list = (const char **) malloc(sizeof(char *) * MAX_FIND_FILES);
+	if (!list)
+	{
+		Com_Printf("Could not allocate list for FS_FindFiles\n");
+		return NULL;
+	}
+
+	memset((void *)list, 0, sizeof(char *) * MAX_FIND_FILES);
+
+	for (search = fs_searchpaths; search; search = search->next)
+	{
+		if (search->pack)
+		{
+			pak = search->pack;
+			for (i = 0; i < pak->numfiles ; i++)
+			{
+				if (!strnicmp(searchpath, pak->files[i].name, pathlen))
+				{
+					ptr = pak->files[i].name + pathlen;
+
+					if (glob_match(globpattern, ptr))
+					{
+						found = false;
+						for (j = 0; j < *numfiles; j++)
+						{
+							if (!stricmp(pak->files[i].name, list[j]))
+							{
+								found = true;
+								break;
+							}
+						}
+
+						if (!found && *numfiles < MAX_FIND_FILES)
+						{
+							list[*numfiles] = _strdup(pak->files[i].name);
+							*numfiles = *numfiles + 1;
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			char foundname[MAX_OSPATH];
+			char findname[MAX_OSPATH];
+			char ** files;
+			int numf;
+
+			Com_sprintf(findname, sizeof(findname), "%s/%s%s", search->filename, searchpath, pattern);
+			files = FS_ListFiles(findname, &numf, 0, 0);
+
+			if (files)
+			{
+				for (i = 0; i < (numf - 1); i++)
+				{
+					ptr = strstr(files[i], searchpath);
+					if (ptr)
+					{
+						strcpy (foundname, ptr);
+						found = false;
+
+						for (j = 0; j < *numfiles; j++)
+						{
+							if (!stricmp(list[j], foundname))
+							{
+								found = true;
+								break;
+							}
+						}
+
+						if (!found && *numfiles < MAX_FIND_FILES)
+						{
+							list[*numfiles] = _strdup(foundname);
+							*numfiles = *numfiles + 1;
+						}
+					}
+
+					if (files[i])
+					{
+						free(files[i]);
+					}
+				}
+
+				free(files);
+			}
+		}
+	}
+
+	return list;
+}

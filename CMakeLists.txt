@@ -27,6 +27,7 @@ set(QCOMMON_SOURCES
   qcommon/crc.c
   qcommon/cvar.c
   qcommon/files.c
+  qcommon/glob.c
   qcommon/md4.c
   qcommon/net_chan.c
   qcommon/pmove.c
@@ -67,7 +68,6 @@ else()
     linux/sys_linux.c
     linux/net_udp.c
     linux/q_shlinux.c
-    linux/glob.c
   )
   set(PLATFORM_INCLUDES linux)
   set(PLATFORM_LIBS m ${CMAKE_DL_LIBS})
@@ -179,7 +179,6 @@ if(WIN32 AND SIN_BUILD_CLIENT)
     win32/snd_win.c
     win32/in_win.c
     win32/vid_dll.c
-    win32/vid_menu.c
     win32/q2.rc
   )
   target_include_directories(sin_client PRIVATE qcommon server game client win32 sin)

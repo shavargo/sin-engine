@@ -1,3 +1,4 @@
+#define Q_vsnprintf _vsnprintf
 /*
 Copyright (C) 1997-2001 Id Software, Inc.
 
@@ -177,6 +178,10 @@ void _VectorSubtract (vec3_t veca, vec3_t vecb, vec3_t out);
 void _VectorAdd (vec3_t veca, vec3_t vecb, vec3_t out);
 void _VectorCopy (vec3_t in, vec3_t out);
 
+const char* COM_GetToken( const char** data_p, qboolean crossline );
+const char* SIN_Parse( const char** data_p );
+float Sinatof (const char *text);
+void AnglesToMat (float ang[3], float mat[3][3]);
 void ClearBounds (vec3_t mins, vec3_t maxs);
 void AddPointToBounds (vec3_t v, vec3_t mins, vec3_t maxs);
 int VectorCompare (vec3_t v1, vec3_t v2);
@@ -721,6 +726,8 @@ typedef struct
 // player_state_t->refdef flags
 #define	RDF_UNDERWATER		1		// warp the screen as apropriate
 #define RDF_NOWORLDMODEL	2		// used for player configuration screen
+#define RDF_NOCLEAR		4
+#define RDF_NOENTITIES	8
 
 //ROGUE
 #define	RDF_IRGOGGLES		4
@@ -1113,6 +1120,9 @@ typedef enum
 #define	STAT_HELPICON			11
 #define	STAT_SELECTED_ITEM		12
 #define	STAT_LAYOUTS			13
+#define STAT_POWERUPTYPE	29
+#define STAT_CLIPAMMO		27
+#define STAT_SELECTED_MODELINDEX 24
 #define	STAT_FRAGS				14
 #define	STAT_FLASHES			15		// cleared each frame, 1 = health, 2 = armor
 #define STAT_CHASE				16
@@ -1120,6 +1130,130 @@ typedef enum
 
 #define	MAX_STATS				32
 
+// CONSOLE3D State
+#define MAIN_CONSOLE				"maincon"
+#define GENERIC_CONSOLE				"gencon"
+#define MISSION_CONSOLE				"missioncon"
+#define MAX_LAYOUT_LENGTH			1024
+#define MAX_CONSOLE_NAME			32
+#define MAX_BUFFER_LENGTH			1024
+#define MAX_CON_LINES				16
+#define MAX_STATUSBARS				32
+#define MAXCMDLINE					256
+
+#define DEVELOPER_MSG_STANDARD			0x00000002 // 2
+#define DEVELOPER_MSG_SOUND				0x00000004 // 4
+#define DEVELOPER_MSG_NET				0x00000008 // 8
+#define DEVELOPER_MSG_IO				0x00000010 // 16
+#define DEVELOPER_MSG_GFX				0x00000020 // 32
+#define DEVELOPER_MSG_GAME				0x00000040 // 64
+#define DEVELOPER_MSG_PMOVE				0x00000080 // 128
+#define DEVELOPER_MSG_SERVER			0x00000100 // 256
+#define DEVELOPER_MSG_CLIENT			0x00000200 // 512
+#define DEVELOPER_MSG_SAVE				0x00000400 // 1024
+#define DEVELOPER_MSG_SINMDL			0x00000800 // 2048
+#define DEVELOPER_MSG_SINCMDS			0x00001000 // 4096
+#define DEVELOPER_MSG_CONSOLE3D			0x00002000 // 8192
+#define DEVELOPER_MSG_PMOVE_VERBOSE		0x00004000 // 16384
+#define DEVELOPER_MSG_CONSOLE_VERBOSE	0x00008000 // 32786
+#define DEVELOPER_MSG_SURFACE_VERBOSE	0x00010000 // 65536
+#define DEVELOPER_MSG_GENERIC_VERBOSE	0x00020000 // 131072
+#define DEVELOPER_MSG_GAMESPY			0x00040000 // 262144
+
+
+typedef enum
+{
+	MOD_FISTS,
+	MOD_MAGNUM,
+	MOD_SHOTGUN,
+	MOD_ASSRIFLE,
+	MOD_CHAINGUN,
+	MOD_GRENADE,
+	MOD_ROCKET,
+	MOD_ROCKETSPLASH,
+	MOD_PULSE,
+	MOD_PULSELASER,
+	MOD_SPEARGUN,
+	MOD_SNIPER,
+	MOD_VEHICLE,
+	MOD_CRUSH,
+	MOD_SHOTROCKET,
+	MOD_FALLING,
+	MOD_DROWN,
+	MOD_SUICIDE,
+	MOD_EXPLODEWALL,
+	MOD_ELECTRIC,
+	MOD_TELEFRAG,
+	MOD_GENBULLET,
+	MOD_LASER,
+	MOD_BETTYSPIKE,
+	MOD_HELIGUN,
+	MOD_DEBRIS,
+	MOD_THROWNOBJECT,
+	MOD_LAVA,
+	MOD_SLIME,
+	MOD_ADRENALINE,
+	MOD_ION,
+	MOD_ION_DESTRUCT,
+	MOD_QUANTUM,
+	MOD_BEAM, 
+	MOD_IMPACT,
+	MOD_FRIENDLY_FIRE,
+	MOD_SPIDERSPLASH,
+	MOD_MUTANTHANDS,
+	MOD_MUTANT_DRAIN,
+	MOD_STINGERROCKET,
+	MOD_STINGERSPLASH,
+	MOD_PLASMABOW,
+	MOD_PLASMABOWSPLASH,
+	MOD_CONCUSSION,
+	MOD_MISSILE,
+	MOD_MISSILESPLASH,
+	MOD_NUKE,
+	MOD_NUKEEXPLOSION,
+	MOD_FLAMETHROWER,
+	MOD_HOVERBIKE,
+	MOD_HB_ROCKET,
+	MOD_HB_ROCKETSPLASH,
+	MOD_HB_GUN,
+	MOD_HB_MINE,
+	MOD_GRAPPLE,
+	MOD_EMPATHY,
+	MOD_THRALLBALL,
+	MOD_THRALLSPLASH,
+	MOD_DEATHQUAD,
+	MOD_CTFTURRET,
+	MOD_RESET
+} mod_type_t;
+
+#ifdef SIN_MP
+#define DF_NO_HEALTH			(1<<0)
+#define DF_NO_POWERUPS			(1<<1)
+#define DF_WEAPONS_STAY			(1<<2)
+#define DF_NO_FALLING			(1<<3)
+#define DF_INSTANT_ITEMS		(1<<4)
+#define DF_SAME_LEVEL			(1<<5)
+#define DF_SKINTEAMS			(1<<6)
+#define DF_MODELTEAMS			(1<<7)
+#define DF_FRIENDLY_FIRE		(1<<8)
+#define DF_SPAWN_FARTHEST		(1<<9)
+#define DF_FORCE_RESPAWN		(1<<10)
+#define DF_NO_ARMOR				(1<<11)
+#define DF_FAST_WEAPONS			(1<<12)
+#define DF_NOEXIT				(1<<13)
+#define DF_INFINITE_AMMO		(1<<14)
+#define DF_FIXED_FOV			(1<<15)
+#define DF_NO_DROP_WEAPONS		(1<<16)
+#define DF_NO_WEAPON_CHANGE		(1<<17)
+#define DF_BBOX_BULLETS			(1<<17)
+#define DF_AUTO_INFORMER		(1<<18)
+#define DF_INFORMER_LOCK		(1<<19)
+#define DF_MIDNIGHT				(1<<20)
+#define DF_FLASHLIGHT			(1<<21)
+#define DF_FLASHLIGHTON			(1<<22)
+#define DF_GOGGLES				(1<<23)
+#define DF_GOGGLESON			(1<<24)
+#else
 
 // dmflags->value flags
 #define	DF_NO_HEALTH		0x00000001	// 1
@@ -1138,6 +1272,7 @@ typedef enum
 #define DF_INFINITE_AMMO	0x00002000	// 8192
 #define DF_QUAD_DROP		0x00004000	// 16384
 #define DF_FIXED_FOV		0x00008000	// 32768
+#endif
 
 // RAFAEL
 #define	DF_QUADFIRE_DROP	0x00010000	// 65536

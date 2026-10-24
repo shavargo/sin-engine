@@ -45,6 +45,27 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	REF_VERSION	"GL 0.01"
 
+typedef struct conInfo_t {
+	float surface_width;
+	float surface_height;
+	vec3_t u;
+	vec3_t v;
+	vec3_t n;
+	vec3_t origin;
+	qboolean onscreen;
+	float alpha;
+} conInfo_t;
+extern conInfo_t consoleInfo;
+
+void Draw_Char3D (float x, float y, int c, int rows, int cols, float r, float g, float b, float a);
+void Flush_Char3D (float r, float g, float b, float a);
+void Draw_Pic3D (float x, float y, const char *picn, float scalex, float scaley, float r, float g, float b, float a);
+void Draw_Fill3D (float x, float y, float w, float h, float r, float g, float b, float a);
+void Draw_AltFill3D (float x, float y, float w, float h, float r, float g, float b, float a);
+void Draw_StretchPic3D (float x, float y, float w, float h, const char *picn, float r, float g, float b, float a);
+void Draw_TilePic3D (float x, float y, float w, float h, const char *picn, float r, float g, float b, float a);
+int SINMDL_GetDefHandle (struct model_s *mdl);
+
 // up / down
 #define	PITCH	0
 
@@ -319,8 +340,8 @@ void	Draw_Pic (int x, int y, char *name);
 void	Draw_StretchPic (int x, int y, int w, int h, char *name);
 void	Draw_Char (int x, int y, int c);
 void	Draw_TileClear (int x, int y, int w, int h, char *name);
-void	Draw_Fill (int x, int y, int w, int h, int c);
-void	Draw_FadeScreen (void);
+void	Draw_Fill (int x, int y, int w, int h, float r, float g, float b);
+void	Draw_FadeScreen (float r, float g, float b, float a);
 void	Draw_StretchRaw (int x, int y, int w, int h, int cols, int rows, byte *data);
 
 void	R_BeginFrame( float camera_separation );

@@ -31,7 +31,7 @@ void CL_ParseInventory (void)
 	int		i;
 
 	for (i=0 ; i<MAX_ITEMS ; i++)
-		cl.inventory[i] = MSG_ReadShort (&net_message);
+		cl.inventory[i].amount = MSG_ReadShort (&net_message);
 }
 
 
@@ -83,7 +83,7 @@ void CL_DrawInventory (void)
 	{
 		if (i==selected)
 			selected_num = num;
-		if (cl.inventory[i])
+		if (cl.inventory[i].amount)
 		{
 			index[num] = i;
 			num++;
@@ -123,7 +123,7 @@ void CL_DrawInventory (void)
 				break;
 			}
 
-		Com_sprintf (string, sizeof(string), "%6s %3i %s", bind, cl.inventory[item],
+		Com_sprintf (string, sizeof(string), "%6s %3i %s", bind, cl.inventory[item].amount,
 			cl.configstrings[CS_ITEMS+item] );
 		if (item != selected)
 			SetStringHighBit (string);

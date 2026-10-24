@@ -1,3 +1,5 @@
+#ifndef _CONSOLE_H_
+#define _CONSOLE_H_
 /*
 Copyright (C) 1997-2001 Id Software, Inc.
 
@@ -60,3 +62,5 @@ void Con_Clear_f (void);
 void Con_DrawNotify (void);
 void Con_ClearNotify (void);
 void Con_ToggleConsole_f (void);
+
+#endif
