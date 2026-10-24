@@ -9,6 +9,8 @@ An open-source engine chassis for **SiN 1 Multiplayer**, built on the id Softwar
 
 > [!TIP]
 > **Stock Client Compatibility**: `sin_ded.exe` is functional and works out-of-the-box with the unmodified **stock SiN Gold client from Steam**! Projectile collision physics (Rocket and Grenade Launchers) and SINMDL 3D mesh rendering are fully implemented.
+>
+> **Client Executable Status**: While `sin_client.exe` is functional, it is not currently playable. Use the stock SiN Gold client from Steam to connect and play.
 
 ---
 
@@ -41,9 +43,11 @@ An open-source engine chassis for **SiN 1 Multiplayer**, built on the id Softwar
 | **Projectile Physics** | :white_check_mark: Functional | Rocket & Grenade Launcher bounce, deflection angles, and damage multipliers verified |
 | **Client Join** | :white_check_mark: Functional | Stock SiN Gold Steam client connects, receives game state, and enters world |
 | **OpenGL Renderer** | :white_check_mark: Functional | SWL texture loading with palette decode, conback `.tga`, SINMDL 3D mesh + multi-skin rendering |
+| **Client Executable** | :construction: In Progress | While `sin_client.exe` is functional, it is not playable |
 
 ### Known Limitations
 
+- **Client Playability**: While `sin_client.exe` is functional, it is not playable.
 - **Steamworks Auth**: Client auth validation is currently stubbed (`sv_steamauth 0` bypasses ticket check).
 
 See [docs/STATUS.md](docs/STATUS.md) and [DELTAS.md](DELTAS.md) for detailed progress tracking.
@@ -78,6 +82,9 @@ sin-engine/
 - **CMake 3.16+** (included with Visual Studio or standalone)
 
 ### Client & Renderer Build
+
+> [!NOTE]
+> While `sin_client.exe` is functional, it is not playable.
 
 To configure and build the client executable (`sin_client.exe`), OpenGL renderer (`ref_gl.dll`), and baseline game DLL (`gamex86.dll`):
 
