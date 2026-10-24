@@ -75,6 +75,10 @@ typedef struct entity_s
 
 #ifdef SIN_MP
 	int		sin_anim;			/* SINMDL anim index for viewgun / skel */
+	float		mat[3][3];
+	int			oldanim;
+	int			anim;
+	float		scale;
 #endif
 
 } entity_t;
@@ -170,8 +174,8 @@ typedef struct
 	void	(*DrawStretchPic) (int x, int y, int w, int h, char *name);
 	void	(*DrawChar) (int x, int y, int c);
 	void	(*DrawTileClear) (int x, int y, int w, int h, char *name);
-	void	(*DrawFill) (int x, int y, int w, int h, int c);
-	void	(*DrawFadeScreen) (void);
+	void	(*DrawFill) (int x, int y, int w, int h, float r, float g, float b);
+	void	(*DrawFadeScreen) (float r, float g, float b, float a);
 
 	// Draw images for cinematic rendering (which can have a different palette). Note that calls
 	void	(*DrawStretchRaw) (int x, int y, int w, int h, int cols, int rows, byte *data);
@@ -184,6 +188,15 @@ typedef struct
 	void	(*EndFrame) (void);
 
 	void	(*AppActivate)( qboolean activate );
+	/* SiN Console 3D drawing */
+	void	(*DrawChar3D) (float x, float y, int c, int rows, int cols, float r, float g, float b, float a);
+	void	(*FlushChar3D) (float r, float g, float b, float a);
+	void	(*DrawPic3D) (float x, float y, const char *picn, float scalex, float scaley, float r, float g, float b, float a);
+	void	(*DrawFill3D) (float x, float y, float w, float h, float r, float g, float b, float a);
+	void	(*DrawAltFill3D) (float x, float y, float w, float h, float r, float g, float b, float a);
+	void	(*DrawStretchPic3D) (float x, float y, float w, float h, const char *picn, float r, float g, float b, float a);
+	void	(*DrawTilePic3D) (float x, float y, float w, float h, const char *picn, float r, float g, float b, float a);
+	int		(*SINMDL_GetDefHandle)( struct model_s * mdl );
 
 } refexport_t;
 

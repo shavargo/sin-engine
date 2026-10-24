@@ -550,6 +550,12 @@ void R_PolyBlend (void)
 	qglEnable (GL_ALPHA_TEST);
 
 	qglColor4f(1,1,1,1);
+	consoleInfo.surface_width  = (float)vid.width;
+	consoleInfo.surface_height = (float)vid.height;
+	consoleInfo.u[0] = 1; consoleInfo.u[1] = 0; consoleInfo.u[2] = 0;
+	consoleInfo.v[0] = 0; consoleInfo.v[1] = 1; consoleInfo.v[2] = 0;
+	consoleInfo.n[0] = 0; consoleInfo.n[1] = 0; consoleInfo.n[2] = 1;
+	consoleInfo.alpha = 1.0f;
 }
 
 //=======================================================================
@@ -875,7 +881,7 @@ void	R_SetGL2D (void)
 	qglViewport (0,0, vid.width, vid.height);
 	qglMatrixMode(GL_PROJECTION);
     qglLoadIdentity ();
-	qglOrtho  (0, vid.width, vid.height, 0, -99999, 99999);
+	qglOrtho  (0, vid.width, 0, vid.height, -99999, 99999);
 	qglMatrixMode(GL_MODELVIEW);
     qglLoadIdentity ();
 	qglDisable (GL_DEPTH_TEST);
@@ -883,6 +889,12 @@ void	R_SetGL2D (void)
 	qglDisable (GL_BLEND);
 	qglEnable (GL_ALPHA_TEST);
 	qglColor4f (1,1,1,1);
+	consoleInfo.surface_width  = (float)vid.width;
+	consoleInfo.surface_height = (float)vid.height;
+	consoleInfo.u[0] = 1; consoleInfo.u[1] = 0; consoleInfo.u[2] = 0;
+	consoleInfo.v[0] = 0; consoleInfo.v[1] = 1; consoleInfo.v[2] = 0;
+	consoleInfo.n[0] = 0; consoleInfo.n[1] = 0; consoleInfo.n[2] = 1;
+	consoleInfo.alpha = 1.0f;
 }
 
 static void GL_DrawColoredStereoLinePair( float r, float g, float b, float y )
@@ -1451,7 +1463,7 @@ void R_BeginFrame( float camera_separation )
 	qglViewport (0,0, vid.width, vid.height);
 	qglMatrixMode(GL_PROJECTION);
     qglLoadIdentity ();
-	qglOrtho  (0, vid.width, vid.height, 0, -99999, 99999);
+	qglOrtho  (0, vid.width, 0, vid.height, -99999, 99999);
 	qglMatrixMode(GL_MODELVIEW);
     qglLoadIdentity ();
 	qglDisable (GL_DEPTH_TEST);
@@ -1459,6 +1471,12 @@ void R_BeginFrame( float camera_separation )
 	qglDisable (GL_BLEND);
 	qglEnable (GL_ALPHA_TEST);
 	qglColor4f (1,1,1,1);
+	consoleInfo.surface_width  = (float)vid.width;
+	consoleInfo.surface_height = (float)vid.height;
+	consoleInfo.u[0] = 1; consoleInfo.u[1] = 0; consoleInfo.u[2] = 0;
+	consoleInfo.v[0] = 0; consoleInfo.v[1] = 1; consoleInfo.v[2] = 0;
+	consoleInfo.n[0] = 0; consoleInfo.n[1] = 0; consoleInfo.n[2] = 1;
+	consoleInfo.alpha = 1.0f;
 
 	/*
 	** draw buffer stuff
@@ -1630,12 +1648,6 @@ void	R_RenderFrame (refdef_t *fd);
 
 struct image_s	*Draw_FindPic (char *name);
 
-void	Draw_Pic (int x, int y, char *name);
-void	Draw_Char (int x, int y, int c);
-void	Draw_TileClear (int x, int y, int w, int h, char *name);
-void	Draw_Fill (int x, int y, int w, int h, int c);
-void	Draw_FadeScreen (void);
-
 /*
 @@@@@@@@@@@@@@@@@@@@@
 GetRefAPI
@@ -1677,6 +1689,14 @@ refexport_t GetRefAPI (refimport_t rimp )
 	re.EndFrame = GLimp_EndFrame;
 
 	re.AppActivate = GLimp_AppActivate;
+	re.DrawChar3D = Draw_Char3D;
+	re.FlushChar3D = Flush_Char3D;
+	re.DrawPic3D = Draw_Pic3D;
+	re.DrawFill3D = Draw_Fill3D;
+	re.DrawAltFill3D = Draw_AltFill3D;
+	re.DrawStretchPic3D = Draw_StretchPic3D;
+	re.DrawTilePic3D = Draw_TilePic3D;
+	re.SINMDL_GetDefHandle = SINMDL_GetDefHandle;
 
 	Swap_Init ();
 

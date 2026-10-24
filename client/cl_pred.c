@@ -164,6 +164,17 @@ trace_t		CL_PMTrace (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end)
 	return t;
 }
 
+trace_t CL_GenericTrace (vec3_t start, const vec3_t mins, const vec3_t maxs, vec3_t end, int contents_mask, qboolean fulltrace, int passent)
+{
+	trace_t t;
+	(void)fulltrace;
+	(void)passent;
+	memset (&t, 0, sizeof(t));
+	t = CM_BoxTrace (start, end, mins, maxs, 0, contents_mask);
+	CL_ClipMoveToEntities (start, (float *)mins, (float *)maxs, end, &t);
+	return t;
+}
+
 int		CL_PMpointcontents (vec3_t point)
 {
 	int			i;

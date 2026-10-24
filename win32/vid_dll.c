@@ -337,6 +337,10 @@ LONG WINAPI MainWndProc (
 		SCR_DirtyScreen ();	// force entire screen to update next frame
         return DefWindowProc (hWnd, uMsg, wParam, lParam);
 
+	case WM_CLOSE:
+		Cbuf_AddText ("quit\n");
+		return 0;
+
 	case WM_DESTROY:
 		// let sound and input know about this?
 		cl_hwnd = NULL;
@@ -501,6 +505,18 @@ vidmode_t vid_modes[] =
 	{ "Mode 9: 1600x1200", 1600, 1200, 9 }
 };
 
+
+int VID_GetModeCount (void)
+{
+	return VID_NUM_MODES;
+}
+
+const char *VID_GetModeDescription (int mode)
+{
+	if ((mode < 0) || (mode >= VID_NUM_MODES))
+		return " UNKNOWN";
+	return vid_modes[mode].description;
+}
 qboolean VID_GetModeInfo( int *width, int *height, int mode )
 {
 	if ( mode < 0 || mode >= VID_NUM_MODES )

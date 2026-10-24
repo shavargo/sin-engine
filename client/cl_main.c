@@ -20,6 +20,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cl_main.c  -- client main loop
 
 #include "client.h"
+void CL_RandomLocalSound (const char *sound)
+{
+	if (sound && sound[0])
+		S_StartLocalSound ((char *)sound);
+}
 
 cvar_t	*freelook;
 
@@ -60,6 +65,11 @@ cvar_t	*cl_showclamp;
 cvar_t	*cl_paused;
 cvar_t	*cl_timedemo;
 cvar_t	*cl_autocmd;
+cvar_t	*cl_skiplogon;
+cvar_t	*model;
+cvar_t	*bikemodel;
+cvar_t	*bikeskin;
+cvar_t	*precache;
 
 cvar_t	*lookspring;
 cvar_t	*lookstrafe;
@@ -633,7 +643,7 @@ void CL_Disconnect (void)
 	VectorClear (cl.refdef.blend);
 	re.CinematicSetPalette(NULL);
 
-	M_ForceMenuOff ();
+	CONSOLE_Exit (cls.mainconsole);
 
 	cls.connect_time = 0;
 
@@ -788,7 +798,7 @@ void CL_ParseStatusMessage (void)
 	s = MSG_ReadString(&net_message);
 
 	Com_Printf ("%s\n", s);
-	M_AddToServerList (net_from, s);
+	MENU_AddToServerList (net_from, s);
 }
 
 
@@ -1459,7 +1469,7 @@ void CL_Sin_Pl_f (void)
 	amount = atoi (Cmd_Argv (2));
 	if (index < 0 || index >= MAX_ITEMS)
 		return;
-	cl.inventory[index] = amount;
+	cl.inventory[index].amount = amount;
 }
 
 void CL_Sin_HudStub_f (void)
@@ -1533,6 +1543,11 @@ void CL_InitLocal (void)
 	cl_paused = Cvar_Get ("paused", "0", 0);
 	cl_timedemo = Cvar_Get ("timedemo", "0", 0);
 	cl_autocmd = Cvar_Get ("cl_autocmd", "", 0);
+	cl_skiplogon = Cvar_Get ("cl_skiplogon", "0", CVAR_ARCHIVE);
+	model = Cvar_Get ("model", "pl_blade", CVAR_USERINFO | CVAR_ARCHIVE);
+	bikemodel = Cvar_Get ("bikemodel", "bike_prototype", CVAR_USERINFO | CVAR_ARCHIVE);
+	bikeskin = Cvar_Get ("bikeskin", "base", CVAR_USERINFO | CVAR_ARCHIVE);
+	precache = Cvar_Get ("cl_precache", "1", 0);
 
 	rcon_client_password = Cvar_Get ("rcon_password", "", 0);
 	rcon_address = Cvar_Get ("rcon_address", "", 0);
@@ -1898,13 +1913,14 @@ void CL_Init (void)
 	net_message.data = net_message_buffer;
 	net_message.maxsize = sizeof(net_message_buffer);
 
-	M_Init ();	
-	
-	SCR_Init ();
-	cls.disable_screen = true;	// don't draw yet
-
 	CDAudio_Init ();
 	CL_InitLocal ();
+
+	CON_Init ();
+	
+	SCR_Init ();
+	cls.disable_screen = 0;
+
 	IN_Init ();
 
 //	Cbuf_AddText ("exec autoexec.cfg\n");
@@ -1917,6 +1933,14 @@ void CL_Init (void)
 		SinCL_Init ();
 	}
 #endif
+}
+
+void CL_CheckAutoLogon (void)
+{
+	if (cls.state == ca_disconnected && cls.key_dest != key_menu3d)
+	{
+		Cbuf_AddText ("menu_logon\n");
+	}
 }
 
 
@@ -1948,3 +1972,15 @@ void CL_Shutdown(void)
 }
 
 
+
+void CL_Begin_f (void)
+{
+	if (cls.state != ca_connected)
+		return;
+	MSG_WriteByte (&cls.netchan.message, clc_stringcmd);
+	MSG_WriteString (&cls.netchan.message, va("begin %i\n", precache_spawncount));
+}
+
+void CL_RefreshServerList (void)
+{
+}

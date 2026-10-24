@@ -42,6 +42,8 @@ qboolean	menubound[256];	// if true, can't be rebound while in menu
 int		keyshift[256];		// key to map to if shift held down in console
 int		key_repeats[256];	// if > 1, it is autorepeating
 qboolean	keydown[256];
+char	*keydoublebindings[256];
+cvar_t	*k_doubleclicktime;
 
 typedef struct
 {
@@ -387,6 +389,7 @@ void Key_Console (int key)
 //============================================================================
 
 qboolean	chat_team;
+qboolean	chat_talk = false;
 char		chat_buffer[MAXCMDLINE];
 int			chat_bufferlen = 0;
 
@@ -549,6 +552,99 @@ void Key_Unbind_f (void)
 	Key_SetBinding (b, "");
 }
 
+extern const char *menu_out_sound;
+void CL_RandomLocalSound( const char *alias );
+void MENU_Main_f( void );
+
+static void Key_Menu3D (int key, unsigned time)
+{
+	console3d_t *p = cls.currentconsole;
+	item3d_t    *item;
+
+	if (!p)
+		return;
+
+	if (!p->menu3d || !p->menu3d[p->current_menu_level])
+	{
+		CONSOLE_Exit(p);
+		return;
+	}
+
+	item = p->menu3d[p->current_menu_level]->item[p->sel_menu_item];
+
+	if (p == cls.mainconsole && key == K_F1)
+	{
+		if (item && item->helpdata)
+			CONSOLE_ScreenPrint(item->helpdata, item->helptime);
+		return;
+	}
+
+	if (p->menu3d[p->current_menu_level]->keyfunc)
+	{
+		p->menu3d[p->current_menu_level]->keyfunc(key);
+		return;
+	}
+
+	if (item && item->type == BIND3D)
+	{
+		MENU_Bind_Key_f(&item->bind, key, time);
+		return;
+	}
+
+	if (item && item->type == FIELD3D)
+	{
+		if (MENU_Field_Key_f(&item->field, key))
+			return;
+	}
+
+	if (key == K_ESCAPE)
+	{
+		qboolean ret;
+		ret = CONSOLE_PopMenu(p);
+		if (!ret)
+		{
+			CL_RandomLocalSound(menu_out_sound);
+			CONSOLE_Exit(p);
+		}
+	}
+
+	if (key == K_ENTER ||  key == K_KP_ENTER)
+	{
+		if (item)
+			CONSOLE_ProcessMenuAction(p, item->action);
+
+		if (item && item->type == FIELD3D)
+			CONSOLE_SelectItem(p, 1);
+
+		return;
+	}
+
+	if (key == K_RIGHTARROW || key == K_KP_RIGHTARROW)
+	{
+		if (item)
+			CONSOLE_SlideItem(p, 1, item);
+		return;
+	}
+
+	if (key == K_LEFTARROW || key == K_KP_LEFTARROW)
+	{
+		if (item)
+			CONSOLE_SlideItem(p, -1, item);
+		return;
+	}
+
+	if (key == K_UPARROW || key == K_KP_UPARROW || (key == 'p' && keydown[K_CTRL]))
+	{
+		CONSOLE_SelectItem(p, -1);
+		return;
+	}
+
+	if (key == K_DOWNARROW || key == K_KP_DOWNARROW || (key == 'n' && keydown[K_CTRL]))
+	{
+		CONSOLE_SelectItem(p, 1);
+		return;
+	}
+}
 void Key_Unbindall_f (void)
 {
 	int		i;
@@ -804,11 +900,13 @@ void Key_Event (int key, qboolean down, unsigned time)
 			Key_Message (key);
 			break;
 		case key_menu:
-			M_Keydown (key);
+		case key_menu3d:
+			Key_Menu3D (key, time);
+			break;
 			break;
 		case key_game:
 		case key_console:
-			M_Menu_Main_f ();
+			MENU_Main_f ();
 			break;
 		default:
 			Com_Error (ERR_FATAL, "Bad cls.key_dest");
@@ -893,7 +991,9 @@ void Key_Event (int key, qboolean down, unsigned time)
 		Key_Message (key);
 		break;
 	case key_menu:
-		M_Keydown (key);
+		case key_menu3d:
+			Key_Menu3D (key, time);
+			break;
 		break;
 
 	case key_game:
@@ -915,6 +1015,7 @@ void Key_ClearStates (void)
 	int		i;
 
 	anykeydown = false;
+	k_doubleclicktime = Cvar_Get ("k_doubleclicktime", "250", CVAR_ARCHIVE);
 
 	for (i=0 ; i<256 ; i++)
 	{
@@ -941,3 +1042,16 @@ int Key_GetKey (void)
 	return key_waiting;
 }
 
+
+void Key_SetDoubleBinding (int keynum, const char *binding)
+{
+	if (keynum < 0 || keynum >= 256)
+		return;
+	if (keydoublebindings[keynum])
+	{
+		free (keydoublebindings[keynum]);
+		keydoublebindings[keynum] = NULL;
+	}
+	if (binding && binding[0])
+		keydoublebindings[keynum] = _strdup (binding);
+}

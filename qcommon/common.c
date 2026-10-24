@@ -44,6 +44,10 @@ cvar_t	*fixedtime;
 cvar_t	*logfile_active;	// 1 = buffer log, 2 = flush after each print
 cvar_t	*showtrace;
 cvar_t	*dedicated;
+cvar_t	*cl_startup_demos;
+cvar_t	*sindemo;
+cvar_t	*cfg_default;
+cvar_t	*game2015;
 
 FILE	*logfile;
 
@@ -1151,6 +1155,9 @@ void Z_Free (void *ptr)
 {
 	zhead_t	*z;
 
+	if (!ptr)
+		return;
+
 	z = ((zhead_t *)ptr) - 1;
 
 	if (z->magic != Z_MAGIC)
@@ -1493,6 +1500,10 @@ void Qcommon_Init (int argc, char **argv)
 	fixedtime = Cvar_Get ("fixedtime", "0", 0);
 	logfile_active = Cvar_Get ("logfile", "0", 0);
 	showtrace = Cvar_Get ("showtrace", "0", 0);
+	cl_startup_demos = Cvar_Get ("cl_startup_demos", "0", CVAR_ARCHIVE);
+	sindemo = Cvar_Get ("sindemo", "0", CVAR_NOSET);
+	cfg_default = Cvar_Get ("cfg_default", "config.cfg", CVAR_NOSET);
+	game2015 = Cvar_Get ("2015", "0", CVAR_NOSET);
 #ifdef DEDICATED_ONLY
 	dedicated = Cvar_Get ("dedicated", "1", CVAR_NOSET);
 #else
@@ -1518,7 +1529,12 @@ void Qcommon_Init (int argc, char **argv)
 	if (!Cbuf_AddLateCommands ())
 	{	// if the user didn't give any commands, run default action
 		if (!dedicated->value)
-			Cbuf_AddText ("d1\n");
+		{
+			if (cl_startup_demos && cl_startup_demos->value)
+				Cbuf_AddText ("d1\n");
+			else
+				Cbuf_AddText ("menu_logon\n");
+		}
 		else
 			Cbuf_AddText ("dedicated_start\n");
 		Cbuf_Execute ();
@@ -1527,9 +1543,17 @@ void Qcommon_Init (int argc, char **argv)
 	{	// the user asked for something explicit
 		// so drop the loading plaque
 		SCR_EndLoadingPlaque ();
+		Cbuf_Execute ();
+#ifndef DEDICATED_ONLY
+		if (!dedicated->value)
+		{
+			CL_CheckAutoLogon ();
+			Cbuf_Execute ();
+		}
+#endif
 	}
 
-	Com_Printf ("====== Quake2 Initialized ======\n\n");	
+	Com_Printf ("====== SiN Initialized ======\n\n");
 }
 
 /*

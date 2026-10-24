@@ -78,6 +78,7 @@ cplane_t	map_planes[MAX_MAP_PLANES+6];		// extra for box hull
 int			numnodes;
 cnode_t		map_nodes[MAX_MAP_NODES+6];		// extra for box hull
 
+int			map_sequence_number;
 int			numleafs = 1;	// allow leaf funcs to be called without a map
 cleaf_t		map_leafs[MAX_MAP_LEAFS];
 int			emptyleaf, solidleaf;
@@ -691,6 +692,7 @@ cmodel_t *CM_LoadMap (char *name, qboolean clientload, unsigned *checksum)
 	FloodAreaConnections ();
 
 	strcpy (map_name, name);
+	map_sequence_number++;
 
 	return &map_cmodels[0];
 }
