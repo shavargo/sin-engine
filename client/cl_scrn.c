@@ -1245,8 +1245,78 @@ The status bar is a small layout program that
 is based on the stats array
 ================
 */
+#ifdef SIN_MP
+/*
+================
+CL_Sin_DrawHud
+
+Draws modern in-game HUD overlay for SiN (Health, Armor, Ammo, Active Weapon)
+================
+*/
+void CL_Sin_DrawHud (void)
+{
+	player_state_t	*ps = &cl.frame.playerstate;
+	char			buf[128];
+	int				y;
+	int				health = ps->stats[0];
+	int				armor = ps->stats[1];
+	int				ammo = ps->stats[2];
+	const char		*wpn = "";
+
+	if (cls.state != ca_active)
+		return;
+
+	// SiN HUD: Health at bottom-left
+	y = viddef.height - 28;
+	Com_sprintf (buf, sizeof(buf), "HEALTH  %d", health);
+	DrawHUDString (buf, 24, y, 0, (health <= 25) ? 128 : 0);
+
+	if (armor > 0)
+	{
+		Com_sprintf (buf, sizeof(buf), "ARMOR  %d", armor);
+		DrawHUDString (buf, 160, y, 0, 0);
+	}
+
+	// Active weapon name & ammo at bottom-right
+	if (ps->stats[25] > 0 && ps->stats[25] < MAX_MODELS && cl.configstrings[CS_MODELS + ps->stats[25]][0])
+	{
+		const char *cs = cl.configstrings[CS_MODELS + ps->stats[25]];
+		const char *slash = strrchr(cs, '/');
+		static char wpn_clean[32];
+		char *dot;
+		wpn = slash ? slash + 1 : cs;
+		Q_strlcpy(wpn_clean, wpn, sizeof(wpn_clean));
+		dot = strrchr(wpn_clean, '.');
+		if (dot) *dot = 0;
+		wpn = wpn_clean;
+	}
+
+	if (ammo >= 0 && wpn[0])
+		Com_sprintf (buf, sizeof(buf), "%s  %d", wpn, ammo);
+	else if (wpn[0])
+		Com_sprintf (buf, sizeof(buf), "%s", wpn);
+	else if (ammo >= 0)
+		Com_sprintf (buf, sizeof(buf), "AMMO  %d", ammo);
+	else
+		buf[0] = 0;
+
+	if (buf[0])
+		DrawHUDString (buf, viddef.width - (int)strlen(buf) * 8 - 24, y, 0, 0);
+}
+#endif
+
 void SCR_DrawStats (void)
 {
+#ifdef SIN_MP
+	if (cls.hud)
+		return;
+	const char *sb = cl.configstrings[CS_STATUSBAR];
+	if (!sb[0] || !Q_stricmp((char *)sb, "DEATHMATCH") || !Q_stricmp((char *)sb, "SINGLEPLAYER") || (sb[0] != 'x' && sb[0] != 'y'))
+	{
+		CL_Sin_DrawHud ();
+		return;
+	}
+#endif
 	SCR_ExecuteLayoutString (cl.configstrings[CS_STATUSBAR]);
 }
 
@@ -1257,7 +1327,9 @@ SCR_DrawLayout
 
 ================
 */
+#ifndef STAT_LAYOUTS
 #define	STAT_LAYOUTS		13
+#endif
 
 void SCR_DrawLayout (void)
 {
@@ -1407,6 +1479,15 @@ void SCR_UpdateScreen (void)
 			MENU_Draw ();
 			MENU_DrawGeneric ();
 			CONSOLE_DrawGlobalLayout ();
+#ifdef SIN_MP
+			CONSOLE_DrawGenericOverlay ();
+			CONSOLE_DrawDialog ();
+			CONSOLE_DrawHUD ();
+			CONSOLE_DrawMissionComputer ();
+			CONSOLE_DrawSpectator ();
+			CONSOLE_DrawScores ();
+			CONSOLE_DrawFades ();
+#endif
 
 			SCR_DrawConsole ();
 

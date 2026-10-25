@@ -25,6 +25,8 @@ int		SINMDL_NumSkins (int modelindex);
 int		SINMDL_NumGroups (int modelindex);
 sinmdl_cmd_t	*SINMDL_InitCommands (int modelindex);
 sinmdl_cmd_t	*SINMDL_Frame_Commands (int modelindex, int animnum, int framenum);
+sinmdl_cmd_t	*SINMDL_Client_Frame_Commands (int modelindex, int animnum, int framenum);
+const char	*SINMDL_Alias_FindRandom (int modelindex, const char *alias);
 float		SINMDL_Frame_Time (int modelindex, int animnum, int framenum);
 void		SINMDL_Frame_Delta (int modelindex, int animnum, int framenum, vec3_t delta);
 

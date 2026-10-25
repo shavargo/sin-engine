@@ -691,6 +691,333 @@ CL_ParseTEnt
 */
 static byte splash_color[] = {0x00, 0xe0, 0xb0, 0x50, 0xd0, 0xe0, 0xe8};
 
+#ifdef SIN_MP
+/*
+=================
+CL_ParseTEnt (SiN Protocol 7)
+=================
+*/
+void CL_ParseTEnt (void)
+{
+	int		type;
+	vec3_t	pos, dir;
+	int		count;
+	int		surftype;
+	int		lightstyle;
+	byte	flags = 0;
+
+	type = MSG_ReadByte (&net_message);
+
+	switch (type)
+	{
+	case TE_GUNSHOT: // 0: bullet hitting wall (pos, dir, timeofs)
+	{
+		float timeofs;
+		int cnt;
+
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		timeofs = (float)MSG_ReadByte (&net_message) / 15.0f;
+
+		CL_ParticleEffect (pos, dir, 0, 40);
+		CL_SmokeAndFlash (pos);
+
+		cnt = rand() & 15;
+		if (cnt == 1)
+			S_StartSound (pos, 0, 0, cl_sfx_ric1, 1, ATTN_NORM, 0);
+		else if (cnt == 2)
+			S_StartSound (pos, 0, 0, cl_sfx_ric2, 1, ATTN_NORM, 0);
+		else if (cnt == 3)
+			S_StartSound (pos, 0, 0, cl_sfx_ric3, 1, ATTN_NORM, 0);
+	}
+	break;
+
+	case TE_PARTICLES: // 1: general particles (blood, sparks, etc.)
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		lightstyle = MSG_ReadByte (&net_message);
+		count = MSG_ReadByte (&net_message);
+		flags = MSG_ReadByte (&net_message);
+		CL_ParticleEffect (pos, dir, (lightstyle == 121) ? 0xe8 : 0xe0, count);
+		break;
+
+	case TE_RANDOM_PARTICLES: // 2: random particles
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		lightstyle = MSG_ReadByte (&net_message);
+		count = MSG_ReadByte (&net_message);
+		flags = MSG_ReadByte (&net_message);
+		CL_ParticleEffect2 (pos, dir, (lightstyle == 121) ? 0xe8 : 0xe0, count);
+		break;
+
+	case TE_TESSELATE: // 3: surface tessellation/chips
+	{
+		int sendflags, min_size, max_size, thickness, entnum, tess_type;
+		vec3_t origin, tess_dir;
+		float power, percentage;
+
+		sendflags = MSG_ReadShort (&net_message);
+
+		if (sendflags & TESS_ORIGIN)
+			MSG_ReadPos (&net_message, origin);
+		if (sendflags & TESS_DIR)
+			MSG_ReadDir (&net_message, tess_dir);
+		if (sendflags & TESS_ENTNUM)
+			entnum = MSG_ReadShort (&net_message);
+		if (sendflags & TESS_MINSIZE)
+			min_size = MSG_ReadByte (&net_message);
+		if (sendflags & TESS_MAXSIZE)
+			max_size = MSG_ReadByte (&net_message);
+		if (sendflags & TESS_POWER)
+			power = MSG_ReadByte (&net_message);
+		if (sendflags & TESS_PERCENT)
+			percentage = MSG_ReadByte (&net_message);
+		if (sendflags & TESS_THICK)
+			thickness = MSG_ReadByte (&net_message);
+		if (sendflags & TESS_LIGHTSTYLE)
+			lightstyle = MSG_ReadByte (&net_message);
+		if (sendflags & TESS_TYPE)
+			tess_type = MSG_ReadByte (&net_message);
+	}
+	break;
+
+	case TE_LASER: // 4: deprecated
+		break;
+
+	case TE_BURNWALL: // 5: burn mark on wall
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadPos (&net_message, dir);
+		count = (signed char)MSG_ReadByte (&net_message);
+		break;
+
+	case TE_TEMPMODEL: // 6: temporary model
+	{
+		entity_t ent;
+		int modelindex, tm_flags;
+		float life;
+		int sendflags = MSG_ReadByte (&net_message);
+
+		memset (&ent, 0, sizeof(entity_t));
+		ent.scale = 1.0f;
+		ent.alpha = 1.0f;
+
+		if (sendflags & TM_ORIGIN)
+			MSG_ReadPos (&net_message, ent.origin);
+		if (sendflags & TM_ANGLES)
+			MSG_ReadPos (&net_message, ent.angles);
+		if (sendflags & TM_ANIM)
+			ent.anim = MSG_ReadByte (&net_message);
+		if (sendflags & TM_SCALE)
+			ent.scale = (float)MSG_ReadShort (&net_message) / 256.0f;
+		if (sendflags & TM_ALPHA)
+			ent.alpha = (float)MSG_ReadByte (&net_message) / 255.0f;
+		if (sendflags & TM_FLAGS)
+			tm_flags = MSG_ReadByte (&net_message);
+		if (sendflags & TM_OWNER)
+			MSG_ReadShort (&net_message);
+		if (sendflags & TM_LIFE)
+			life = (float)MSG_ReadShort (&net_message) / 1000.0f;
+		modelindex = MSG_ReadShort (&net_message);
+	}
+	break;
+
+	case TE_STRIKE: // 7: surface strike
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		lightstyle = MSG_ReadByte (&net_message);
+		surftype = MSG_ReadByte (&net_message);
+		CL_ParticleEffect (pos, dir, 0xe0, 10);
+		break;
+
+	case TE_DLIGHT: // 8: dynamic light
+	{
+		float r, g, b, radius, decay, life;
+		cdlight_t *dl;
+
+		MSG_ReadPos (&net_message, pos);
+		r = (float)MSG_ReadByte (&net_message) / 255.0f;
+		g = (float)MSG_ReadByte (&net_message) / 255.0f;
+		b = (float)MSG_ReadByte (&net_message) / 255.0f;
+		radius = MSG_ReadByte (&net_message) * 4;
+		decay = (float)MSG_ReadByte (&net_message) / 255.0f;
+		life = (float)MSG_ReadByte (&net_message) / 25.5f;
+
+		dl = CL_AllocDlight (0);
+		VectorCopy (pos, dl->origin);
+		dl->radius = radius;
+		dl->die = cl.time + life;
+		dl->color[0] = r;
+		dl->color[1] = g;
+		dl->color[2] = b;
+	}
+	break;
+
+	case TE_ROCKET_EXPLOSION: // 9: rocket explosion
+		MSG_ReadPos (&net_message, pos);
+		CL_ExplosionParticles (pos);
+		break;
+
+	case TE_BEAM: // 10: beam effect
+	{
+		byte sendflags;
+		vec3_t start, end;
+		int modelindex, bm_flags = 0;
+		float alpha = 1.0f;
+		short life = 30;
+
+		sendflags = MSG_ReadByte (&net_message);
+		MSG_ReadPos (&net_message, start);
+		MSG_ReadPos (&net_message, end);
+		modelindex = MSG_ReadShort (&net_message);
+		if (sendflags & BM_ALPHA)
+			alpha = (float)MSG_ReadByte (&net_message) / 255.0f;
+		if (sendflags & BM_FLAGS)
+			bm_flags = MSG_ReadByte (&net_message);
+		if (sendflags & BM_LIFE)
+			life = MSG_ReadShort (&net_message);
+	}
+	break;
+
+	case TE_DAMAGE_WALL: // 11: wall damage effect
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		lightstyle = MSG_ReadByte (&net_message);
+		CL_ParticleEffect (pos, dir, 0xe0, 4);
+		break;
+
+	case TE_TELEPORT_EFFECT: // 12: teleport
+		MSG_ReadPos (&net_message, pos);
+		lightstyle = MSG_ReadByte (&net_message);
+		CL_TeleportParticles (pos);
+		break;
+
+	case TE_BULLET_SPRAY: // 13: shotgun / spray
+	{
+		vec3_t right, up;
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		MSG_ReadDir (&net_message, right);
+		MSG_ReadDir (&net_message, up);
+		count = MSG_ReadByte (&net_message);
+		CL_ParticleEffect (pos, dir, 0, count * 8);
+	}
+	break;
+
+	case TE_SCALED_EXPLOSION: // 14: scaled explosion
+		MSG_ReadPos (&net_message, pos);
+		count = MSG_ReadByte (&net_message);
+		CL_ExplosionParticles (pos);
+		break;
+
+	case TE_PULSE_EXPLOSION: // 15: pulse explosion
+		MSG_ReadPos (&net_message, pos);
+		CL_ExplosionParticles (pos);
+		break;
+
+	case TE_FLAMETHROWER: // 16: flamethrower
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		break;
+
+	case TE_FLAMETHROWERROW: // 17: row of flames
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		break;
+
+	case TE_FLAMETHROWERHIT: // 18: flame hit
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		break;
+
+	case TE_FLAME: // 19: general flame puff
+	{
+		vec3_t dirb;
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadDir (&net_message, dir);
+		MSG_ReadByte (&net_message);
+		MSG_ReadDir (&net_message, dirb);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message);
+	}
+	break;
+
+	case TE_NUKE_EXPLOSION: // 20: nuke explosion
+		MSG_ReadPos (&net_message, pos);
+		count = MSG_ReadByte (&net_message) * 8;
+		lightstyle = MSG_ReadByte (&net_message);
+		CL_ExplosionParticles (pos);
+		break;
+
+	case TE_BOW_EXPLOSION: // 21: bow explosion
+		MSG_ReadPos (&net_message, pos);
+		count = MSG_ReadByte (&net_message);
+		CL_ExplosionParticles (pos);
+		break;
+
+	case TE_HOVERBOOSTER: // 22: hoverbike booster
+		MSG_ReadPos (&net_message, pos);
+		count = MSG_ReadByte (&net_message) * 2;
+		break;
+
+	case TE_SIZED_PARTICLES: // 23: sized particles
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		lightstyle = MSG_ReadByte (&net_message);
+		count = MSG_ReadByte (&net_message);
+		flags = MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message); // size
+		MSG_ReadByte (&net_message); // growrate
+		CL_ParticleEffect (pos, dir, 0xe0, count);
+		break;
+
+	case TE_RANDOM_SIZED_PARTICLES: // 24: random sized particles
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		lightstyle = MSG_ReadByte (&net_message);
+		count = MSG_ReadByte (&net_message);
+		flags = MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message); // size
+		MSG_ReadByte (&net_message); // growrate
+		CL_ParticleEffect2 (pos, dir, 0xe0, count);
+		break;
+
+	case TE_PARTICLES_FULL: // 25: full controllable particles
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		lightstyle = MSG_ReadByte (&net_message);
+		count = MSG_ReadByte (&net_message);
+		flags = MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message); // size
+		MSG_ReadByte (&net_message); // growrate
+		MSG_ReadByte (&net_message); // speed
+		MSG_ReadByte (&net_message); // spread
+		MSG_ReadByte (&net_message); // accel[0]
+		MSG_ReadByte (&net_message); // accel[1]
+		MSG_ReadByte (&net_message); // accel[2]
+		CL_ParticleEffect (pos, dir, 0xe0, count);
+		break;
+
+	default:
+		Com_Error (ERR_DROP, "CL_ParseTEnt: bad type %i", type);
+		break;
+	}
+}
+#else
 void CL_ParseTEnt (void)
 {
 	int		type;
@@ -1197,6 +1524,7 @@ void CL_ParseTEnt (void)
 		Com_Error (ERR_DROP, "CL_ParseTEnt: bad type");
 	}
 }
+#endif
 
 /*
 =================

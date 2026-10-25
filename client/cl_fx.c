@@ -2300,6 +2300,9 @@ CL_ClearEffects
 */
 void CL_ClearEffects (void)
 {
+#ifdef SIN_MP
+	CL_MC_Clear ();
+#endif
 	CL_ClearParticles ();
 	CL_ClearDlights ();
 	CL_ClearLightStyles ();

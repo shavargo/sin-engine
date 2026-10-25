@@ -1254,10 +1254,28 @@ static void MENU_ApplyVideoChanges( void *unused )
 	int new_palettedtexture;
 	float gamma;
 
+	int fs_mode;
 	gamma = ( 0.8 - ( Cvar_VariableValue( "con_brightness" )/10.0 - 0.5 ) ) + 0.5;
 
 	Cvar_SetValue( "vid_gamma", gamma );
-	Cvar_SetValue( "vid_fullscreen", Cvar_VariableValue( "con_fullscreen" ));
+
+	// Handle Windowed (0), Fullscreen (1), Borderless Fullscreen (2)
+	fs_mode = (int)Cvar_VariableValue( "con_fullscreen" );
+	if (fs_mode == 2)
+	{
+		Cvar_SetValue( "vid_fullscreen", 0 );
+		Cvar_SetValue( "vid_borderless", 1 );
+	}
+	else if (fs_mode == 1)
+	{
+		Cvar_SetValue( "vid_fullscreen", 1 );
+		Cvar_SetValue( "vid_borderless", 0 );
+	}
+	else
+	{
+		Cvar_SetValue( "vid_fullscreen", 0 );
+		Cvar_SetValue( "vid_borderless", 0 );
+	}
 
 	switch ( (int)Cvar_VariableValue( "con_driver" ) )
 	{
@@ -1347,6 +1365,7 @@ static void MENU_ApplyVideoChanges( void *unused )
 
 	// Force the menus to update.
 	con_vidres = CON_NORES;
+	CL_WriteConfiguration ();
 }
 
 static void MENU_VideoResolutionGrab (console3d_t *p) /* FS: Don't rely on the menu.mnu for this */
@@ -1380,7 +1399,30 @@ static void MENU_VideoResolutionGrab (console3d_t *p) /* FS: Don't rely on the m
 				{
 					level = i;
 					item = j;
-					break;
+				}
+				else if (!strcmp( "con_fullscreen", list->name ))
+				{
+					int k;
+					for (k=0; k<list->numitems; k++)
+					{
+						if (list->itemnames && list->itemnames[k])
+						{
+							Z_Free((void *)list->itemnames[k]);
+							list->itemnames[k] = NULL;
+						}
+					}
+					if (list->itemnames) Z_Free((void *)list->itemnames);
+					if (list->itemactions) Z_Free((void *)list->itemactions);
+
+					list->numitems = 3;
+					list->itemactions = (char **)Z_TagMalloc( sizeof(char *) * 3, TAG_CONSOLE_BASE+p->console_number );
+					list->itemnames = (char **)Z_TagMalloc( sizeof(char *) * 3, TAG_CONSOLE_BASE+p->console_number );
+					list->itemnames[0] = CONSOLE_strdup("Windowed", p);
+					list->itemnames[1] = CONSOLE_strdup("Fullscreen", p);
+					list->itemnames[2] = CONSOLE_strdup("Borderless", p);
+					list->itemactions[0] = NULL;
+					list->itemactions[1] = NULL;
+					list->itemactions[2] = NULL;
 				}
 			}
 		}
@@ -1414,13 +1456,13 @@ static void MENU_VideoResolutionGrab (console3d_t *p) /* FS: Don't rely on the m
 
 	if (viddef.width < 640)
 	{
-		p->menu3d[level]->item[item]->sel_menu_layout = CONSOLE_strdup("fc 1 1 1 1 oxl 40 oyt -130 cursor string \"Video Mode: \" oxl 144 oyt -130 drawlist \"numchars 18 red 0.25 green 0.25 blue 0.56\"", p);
-		p->menu3d[level]->item[item]->menu_layout = CONSOLE_strdup("fc 0.7 0.7 0.7 0.7 oxl 40 oyt -130 string \"Video Mode: \" oxl 144 oyt -130 drawlist \"numchars 18 red 0.2 green 0.2 blue 0.2\"", p);
+		p->menu3d[level]->item[item]->sel_menu_layout = CONSOLE_strdup("fc 1 1 1 1 oxl 40 oyt -130 cursor string \"Video Mode: \" oxl 144 oyt -130 drawlist \"numchars 28 red 0.25 green 0.25 blue 0.56\"", p);
+		p->menu3d[level]->item[item]->menu_layout = CONSOLE_strdup("fc 0.7 0.7 0.7 0.7 oxl 40 oyt -130 string \"Video Mode: \" oxl 144 oyt -130 drawlist \"numchars 28 red 0.2 green 0.2 blue 0.2\"", p);
 	}
 	else
 	{
-		p->menu3d[level]->item[item]->sel_menu_layout = CONSOLE_strdup("fc 1 1 1 1 oxl 150 oyt -300 cursor string \"Video Mode: \" oxl 308 oyt -300 drawlist \"numchars 20 red 0.25 green 0.25 blue 0.56\"", p);
-		p->menu3d[level]->item[item]->menu_layout = CONSOLE_strdup("fc 0.7 0.7 0.7 0.7 oxl 150 oyt -300 string \"Video Mode: \" oxl 308 oyt -300 drawlist \"numchars 20 red 0.2 green 0.2 blue 0.2\"", p);
+		p->menu3d[level]->item[item]->sel_menu_layout = CONSOLE_strdup("fc 1 1 1 1 oxl 150 oyt -300 cursor string \"Video Mode: \" oxl 308 oyt -300 drawlist \"numchars 28 red 0.25 green 0.25 blue 0.56\"", p);
+		p->menu3d[level]->item[item]->menu_layout = CONSOLE_strdup("fc 0.7 0.7 0.7 0.7 oxl 150 oyt -300 string \"Video Mode: \" oxl 308 oyt -300 drawlist \"numchars 28 red 0.2 green 0.2 blue 0.2\"", p);
 	}
 
 	for (i=0; i<nitems; i++)
@@ -1467,7 +1509,10 @@ static void MENU_VideoInit( void *unused )
 	if ( !scr_viewsize )
 		scr_viewsize = Cvar_Get ( "viewsize", "100", CVAR_ARCHIVE );
 
-	MENU_UpdateValueForName( "con_fullscreen",Cvar_VariableValue( "vid_fullscreen" ),p );
+	if (Cvar_VariableValue( "vid_borderless" ) > 0)
+		MENU_UpdateValueForName( "con_fullscreen", 2, p );
+	else
+		MENU_UpdateValueForName( "con_fullscreen", Cvar_VariableValue( "vid_fullscreen" ), p );
 	MENU_UpdateValueForName( "con_screensize",Cvar_VariableValue( "viewsize" )/10,p );
 	MENU_UpdateValueForName( "con_brightness",( 1.3 - vid_gamma->value + 0.5 ) * 10,p );
 
@@ -1535,6 +1580,12 @@ void VID_MenuInit( void )
 	if ( !scr_viewsize ) {
 		scr_viewsize = Cvar_Get ( "viewsize", "100", CVAR_ARCHIVE );
 	}
+	Cvar_Get( "vid_borderless", "0", CVAR_ARCHIVE );
+	Cvar_Get( "gl_anisotropic", "0", CVAR_ARCHIVE );
+	Cvar_Get( "gl_swapinterval", "1", CVAR_ARCHIVE );
+	Cvar_Get( "horplus", "1", CVAR_ARCHIVE );
+	Cvar_Get( "in_rawmouse", "1", CVAR_ARCHIVE );
+	Cvar_Get( "r_hudscale", "1", CVAR_ARCHIVE );
 }
 
 //=============
@@ -1673,10 +1724,29 @@ static void MENU_LoadGame( void *self )
 static void MENU_LoadPlayer( void *self )
 {
 	char path[MAX_QPATH];
+	char full_path[MAX_OSPATH];
+	FILE *f;
 
 	item3d_t *item = (item3d_t *)self;
+
+	/* Save current profile settings before switching */
+	CL_WriteConfiguration ();
+
 	Cvar_Set ( "player", item->field.buffer );
 	FS_InitPlayerdir();
+
+	/* If the target player config does not exist yet, clone current settings into it */
+	Com_sprintf ( full_path, sizeof(full_path), "%s/config.cfg", FS_Playerdir() );
+	f = fopen ( full_path, "r" );
+	if (!f)
+	{
+		CL_WriteConfiguration ();
+	}
+	else
+	{
+		fclose (f);
+	}
+
 	Com_sprintf ( path, sizeof(path),"%s/%s",FS_RelativePlayerdir(), cfg_default->string );
 	Cbuf_AddText ( "exec default.cfg\n" );
 	Cbuf_AddText ( va( "\nexec %s\n vid_restart\n", path ) );
@@ -1688,10 +1758,7 @@ static void MENU_LoadPlayer( void *self )
 //============
 static void MENU_Relogon( void *unused )
 {
-	char cfgName[MAX_QPATH];
-
-	COM_StripExtension( cfg_default->string, cfgName );
-	CL_WriteConfiguration( cfgName );
+	CL_WriteConfiguration ();
 
 	MENU_ForceLogon_f();
 }
