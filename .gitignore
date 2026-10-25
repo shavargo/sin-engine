@@ -51,6 +51,11 @@ sinroot/
 .env
 .env.*
 
+# Internal documentation and notes (never track in git)
+docs/
+internal/
+*.notes.md
+
 # OS artifacts
 Thumbs.db
 ehthumbs.db
