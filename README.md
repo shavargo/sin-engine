@@ -64,8 +64,6 @@ The following items are actively identified for resolution when development resu
 - **Specialized Weapon Effects**: Beam weapons (`shootbeam` for Bee, Stunner, Lightning), `explosion` events, and footstep sound dispatch (`footstep`).
 - **Steamworks Auth**: Client auth validation is currently stubbed (`sv_steamauth 0` bypasses ticket check).
 
-See [docs/STATUS.md](docs/STATUS.md) and [DELTAS.md](DELTAS.md) for detailed progress tracking.
-
 ---
 
 ## Directory Structure
@@ -81,7 +79,6 @@ sin-engine/
 ├── ref_soft/         # Software renderer (legacy)
 ├── game/             # Stock Quake 2 game DLL (used for clean baseline bring-up)
 ├── sin/              # SiN Multiplayer deltas (protocol 7, SPAK, SINMDL, Steam stubs)
-├── docs/             # Technical guides (hosting, game DLL API, drop-in layout)
 └── CMakeLists.txt    # Modern CMake configuration
 ```
 
@@ -141,8 +138,6 @@ From the stock Steam SiN Gold client console:
 ```
 connect 127.0.0.1:27910
 ```
-
-For detailed hosting notes and configuration options, see [docs/HOSTING.md](docs/HOSTING.md).
 
 ---
 
