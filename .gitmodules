@@ -1,0 +1,3 @@
+[submodule "game_sin"]
+	path = game_sin
+	url = https://github.com/NightDive-Studio/sin-ex-game
