@@ -406,6 +406,13 @@ typedef struct particle_s
 // ========
 
 void CL_ClearEffects (void);
+#ifdef SIN_MP
+/* cl_modelcmds.c -- client side .def frame commands */
+void CL_MC_Clear (void);
+void CL_MC_ProcessEntity (entity_state_t *s, entity_t *ent, qboolean viewgun);
+void CL_MC_SetViewGun (entity_t *gun);
+void CL_MC_AddEffects (void);
+#endif
 void CL_ClearTEnts (void);
 void CL_BlasterTrail (vec3_t start, vec3_t end);
 void CL_QuadTrail (vec3_t start, vec3_t end);

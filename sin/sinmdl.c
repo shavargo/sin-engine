@@ -81,6 +81,14 @@ typedef struct
 	char	groups[SINMDL_MAX_GROUPS][SINMDL_NAME_LEN];
 	vec3_t	mins, maxs;
 	sinmdl_cmd_t	init_cmds;
+	/* client sound aliases from "client aliascache <alias> <file> [weight]" */
+	int		num_aliases;
+	struct
+	{
+		char	alias[48];
+		char	file[64];
+		float	weight;
+	}		aliases[96];
 	/* !main frame commands: server|client ANIM first|last|N CMD ... */
 	int		num_fcmds;
 	struct
@@ -370,7 +378,20 @@ parse_sdef (sinmdl_def_t *d, char *text, int len)
 			 * (plus bare commands in !init: with neither server nor client prefix).
 			 */
 			if (!sin_strcasecmp (words[0], "client"))
+			{
+				if (nw >= 4 && d->num_aliases < 96
+					&& (!sin_strcasecmp (words[1], "aliascache") || !sin_strcasecmp (words[1], "alias")))
+				{
+					int	n = d->num_aliases++;
+
+					strncpy (d->aliases[n].alias, words[2], sizeof (d->aliases[n].alias) - 1);
+					strncpy (d->aliases[n].file, words[3], sizeof (d->aliases[n].file) - 1);
+					d->aliases[n].weight = (nw >= 5) ? (float)atof (words[4]) : 1.0f;
+					if (d->aliases[n].weight <= 0.f)
+						d->aliases[n].weight = 1.0f;
+				}
 				continue;
+			}
 			if (!sin_strcasecmp (words[0], "server"))
 				def_add_init_cmd_words (d, words + 1, nw - 1);
 			else
@@ -846,7 +867,7 @@ sinmdl_cmd_t *SINMDL_InitCommands (int modelindex)
 	return d ? &d->init_cmds : &empty;
 }
 
-sinmdl_cmd_t *SINMDL_Frame_Commands (int modelindex, int animnum, int framenum)
+static sinmdl_cmd_t *frame_commands (int modelindex, int animnum, int framenum, qboolean want_server)
 {
 	static sinmdl_cmd_t	ring[16];
 	static int			ri;
@@ -878,7 +899,7 @@ sinmdl_cmd_t *SINMDL_Frame_Commands (int modelindex, int animnum, int framenum)
 		int			a;
 		qboolean	match = false;
 
-		if (!d->fcmds[i].server)
+		if (d->fcmds[i].server != want_server)
 			continue;
 		if (!sin_strcasecmp (fa, aname))
 			match = true;
@@ -900,6 +921,61 @@ sinmdl_cmd_t *SINMDL_Frame_Commands (int modelindex, int animnum, int framenum)
 		out->num_cmds++;
 	}
 	return out;
+}
+
+sinmdl_cmd_t *SINMDL_Frame_Commands (int modelindex, int animnum, int framenum)
+{
+	return frame_commands (modelindex, animnum, framenum, true);
+}
+
+/* Client-side frame commands (muzzle flash, sounds, tracers, trails, ...). */
+sinmdl_cmd_t *SINMDL_Client_Frame_Commands (int modelindex, int animnum, int framenum)
+{
+	return frame_commands (modelindex, animnum, framenum, false);
+}
+
+/*
+ * Pick a sound file for a model-local alias.  An alias name matches when it
+ * equals `alias` or `alias` followed only by digits (snd_fire -> snd_fire1).
+ * Selection is weighted.
+ */
+const char *SINMDL_Alias_FindRandom (int modelindex, const char *alias)
+{
+	sinmdl_def_t	*d = def_for_index (modelindex);
+	int				matches[96], count = 0, i;
+	size_t			len;
+	float			total = 0.f, r, acc = 0.f;
+
+	if (!d || !alias || !alias[0])
+		return NULL;
+	len = strlen (alias);
+	for (i = 0; i < d->num_aliases; i++)
+	{
+		const char	*a = d->aliases[i].alias;
+		const char	*t;
+
+		if (sin_strncasecmp (a, alias, len))
+			continue;
+		for (t = a + len; *t; t++)
+			if (*t < '0' || *t > '9')
+				break;
+		if (*t)
+			continue;
+		matches[count++] = i;
+		total += d->aliases[i].weight;
+	}
+	if (!count)
+		return NULL;
+	if (count == 1)
+		return d->aliases[matches[0]].file;
+	r = ((float)(rand () & 0x7fff) / 32767.0f) * total;
+	for (i = 0; i < count; i++)
+	{
+		acc += d->aliases[matches[i]].weight;
+		if (r <= acc)
+			return d->aliases[matches[i]].file;
+	}
+	return d->aliases[matches[count - 1]].file;
 }
 
 float SINMDL_Frame_Time (int modelindex, int animnum, int framenum)

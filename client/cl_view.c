@@ -35,6 +35,7 @@ cvar_t		*cl_testparticles;
 cvar_t		*cl_testentities;
 cvar_t		*cl_testlights;
 cvar_t		*cl_testblend;
+cvar_t		*horplus;
 
 cvar_t		*cl_stats;
 const char	*cl_status_string1 = "";
@@ -514,7 +515,19 @@ void V_RenderView( float stereo_separation )
 		cl.refdef.y = scr_vrect.y;
 		cl.refdef.width = scr_vrect.width;
 		cl.refdef.height = scr_vrect.height;
-		cl.refdef.fov_y = CalcFov (cl.refdef.fov_x, cl.refdef.width, cl.refdef.height);
+
+		// Yamagi Quake II Hor+ widescreen FOV calculation
+		if (horplus && horplus->value && (cl.refdef.width * 3 > cl.refdef.height * 4))
+		{
+			float fov_y_43 = CalcFov (cl.refdef.fov_x, 4.0f, 3.0f);
+			float x = cl.refdef.height / (float)tan(fov_y_43 / 360.0f * M_PI);
+			cl.refdef.fov_x = (float)atan(cl.refdef.width / x) * 360.0f / (float)M_PI;
+			cl.refdef.fov_y = fov_y_43;
+		}
+		else
+		{
+			cl.refdef.fov_y = CalcFov (cl.refdef.fov_x, cl.refdef.width, cl.refdef.height);
+		}
 		cl.refdef.time = cl.time*0.001;
 
 		cl.refdef.areabits = cl.frame.areabits;
@@ -585,6 +598,7 @@ void V_Init (void)
 	Cmd_AddCommand ("viewpos", V_Viewpos_f);
 
 	crosshair = Cvar_Get ("crosshair", "0", CVAR_ARCHIVE);
+	horplus = Cvar_Get ("horplus", "1", CVAR_ARCHIVE);
 
 	cl_testblend = Cvar_Get ("cl_testblend", "0", 0);
 	cl_testparticles = Cvar_Get ("cl_testparticles", "0", 0);
