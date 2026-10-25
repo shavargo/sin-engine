@@ -321,6 +321,11 @@ enum clc_ops_e
 #define	SND_POS			(1<<2)		// three coordinates
 #define	SND_ENT			(1<<3)		// a short 0-2: channel, 3-12: entity
 #define	SND_OFFSET		(1<<4)		// a byte, msec offset from frame start
+#ifdef SIN_MP
+#define	SND_PITCH		(1<<5)		// a byte, for pitch control
+#define	SND_FADE		(1<<6)		// a byte, for fading time
+#define	SND_FLAGS		(1<<7)		// a byte, for sound flags
+#endif
 
 #define DEFAULT_SOUND_PACKET_VOLUME	1.0
 #define DEFAULT_SOUND_PACKET_ATTENUATION 1.0

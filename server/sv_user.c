@@ -646,21 +646,7 @@ void SV_ClientThink (client_t *cl, usercmd_t *cmd)
 		Sys_SinCrashCrumb ("ge.ClientThink");
 		ge->ClientThink (cl->edict, cmd);
 		Sys_SinCrashCrumb ("ge.ClientThink.done");
-		if (think_log < 40)
-		{
-			edict_t	*e = cl->edict;
-			gclient_t *gc = e ? e->client : NULL;
-			Com_Printf ("Think[%d] %s msec=%u btn=%u ang=%d/%d/%d mv=%d/%d/%d x=%u pm=%d fl=0x%x origin=(%.0f %.0f %.0f) va=(%.0f %.0f) st0=%d st1=%d\n",
-				think_log, cl->name, cmd->msec, cmd->buttons,
-				cmd->angles[0], cmd->angles[1], cmd->angles[2],
-				cmd->forwardmove, cmd->sidemove, cmd->upmove, cmd->extra,
-				gc ? gc->ps.pmove.pm_type : -1,
-				gc ? gc->ps.pmove.pm_flags : 0,
-				e ? e->s.origin[0] : 0, e ? e->s.origin[1] : 0, e ? e->s.origin[2] : 0,
-				gc ? gc->ps.viewangles[0] : 0, gc ? gc->ps.viewangles[1] : 0,
-				gc ? gc->ps.stats[0] : -1, gc ? gc->ps.stats[1] : -1);
-			think_log++;
-		}
+
 	}
 #else
 	ge->ClientThink (cl->edict, cmd);

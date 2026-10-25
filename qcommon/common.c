@@ -1487,6 +1487,17 @@ void Qcommon_Init (int argc, char **argv)
 	Cbuf_AddEarlyCommands (true);
 	Cbuf_Execute ();
 
+#ifdef SIN_MP
+	FS_InitPlayerdir ();
+	if (FS_RelativePlayerdir()[0])
+	{
+		char player_exec[MAX_OSPATH];
+		Com_sprintf (player_exec, sizeof(player_exec), "exec %s/config.cfg\n", FS_RelativePlayerdir());
+		Cbuf_AddText (player_exec);
+		Cbuf_Execute ();
+	}
+#endif
+
 	//
 	// init commands and vars
 	//
