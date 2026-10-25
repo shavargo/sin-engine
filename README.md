@@ -50,14 +50,19 @@ An open-source engine chassis for **SiN 1 Multiplayer**, built on the id Softwar
 | **OpenGL Renderer** | :white_check_mark: Functional | SWL texture loading with palette decode, conback `.tga`, SINMDL 3D mesh rendering, depth-hack for first-person models, and multi-skin support |
 | **Platform Layer** | :white_check_mark: Functional | Modern SDL2 backend with widescreen/high-DPI display, raw relative mouse input, borderless fullscreen, and OGG audio streaming |
 | **3D Menu & Console** | :white_check_mark: Functional | Authentic SiN 3D interactive main menu (`menu3d.c`) and 3D textured console (`console3d.c`) |
-| **View Weapon Models** | :white_check_mark: Functional | Parented first-person weapon models attach properly to player, cycle animation frames without synthetic time loops, and respect frame 0 |
-| **Client Effects System**| :white_check_mark: Functional | Client-side `.def` frame command processor (`cl_modelcmds.c`) for muzzle flashes, firing sounds, tracers, dlights, and smoke trails |
-| **Client Playability** | :construction: In Progress | In-game rendering, movement, and multiplayer connectivity are functional; advanced particle systems and weapon beams are ongoing |
+| **View Weapon Models** | :construction: In Progress | Parented first-person weapon models attach properly to player; idle, firing, and reload animation state transitions and loop behaviors are under active refinement |
+| **Client Effects System**| :construction: In Progress | Initial `.def` frame command execution framework (`cl_modelcmds.c`) implemented; texture binding for spawned effect models/sprites, particle textures, and specialized beams (`shootbeam`) are being addressed |
+| **Client Playability** | :construction: In Progress | In-game rendering, movement, and multiplayer connectivity are functional; advanced particle systems, weapon beams, and world surface translucency (glass) are ongoing |
 
-### Known Limitations
+### Known Limitations & Immediate Worklist
 
+The following items are actively identified for resolution when development resumes:
+
+- **Weapon View Model Animations**: View model animation playback issues (weapons getting stuck in loops, failing to cycle, or jittering during state transitions).
+- **Client Effects Textures (Grey Boxes)**: Spawned transient models and sprites appearing as untextured/grey boxes due to missing image/texture binding in the effect pipeline.
+- **Glass / Translucent World Surfaces**: Glass and transparent brush surfaces rendering opaque in the OpenGL renderer (needs mapping of SiN surface types / `CONTENTS_WINDOW` / `SURF_TYPE_GLASS` and blending paths).
+- **Specialized Weapon Effects**: Beam weapons (`shootbeam` for Bee, Stunner, Lightning), `explosion` events, and footstep sound dispatch (`footstep`).
 - **Steamworks Auth**: Client auth validation is currently stubbed (`sv_steamauth 0` bypasses ticket check).
-- **Beam & Particle Effects**: Specialized beams (`shootbeam`) and secondary particle cascades are being refined.
 
 See [docs/STATUS.md](docs/STATUS.md) and [DELTAS.md](DELTAS.md) for detailed progress tracking.
 
