@@ -122,6 +122,7 @@ cvar_t	*gl_flashblend;
 cvar_t	*gl_playermip;
 cvar_t  *gl_saturatelighting;
 cvar_t	*gl_swapinterval;
+cvar_t	*gl_anisotropic;
 cvar_t	*gl_texturemode;
 cvar_t	*gl_texturealphamode;
 cvar_t	*gl_texturesolidmode;
@@ -185,6 +186,11 @@ void R_DrawSpriteModel (entity_t *e)
 	dsprframe_t	*frame;
 	float		*up, *right;
 	dsprite_t		*psprite;
+#ifdef SIN_MP
+	float		sc = (e->scale > 0.0f) ? e->scale : 1.0f;
+#else
+	float		sc = 1.0f;
+#endif
 
 	// don't even bother culling, because it's just a single
 	// polygon without a surface cache
@@ -235,29 +241,35 @@ void R_DrawSpriteModel (entity_t *e)
 	else
 		qglDisable( GL_ALPHA_TEST );
 
+	if (e->flags & RF_DEPTHHACK)
+		qglDepthRange (gldepthmin, gldepthmin + 0.3 * (gldepthmax - gldepthmin));
+
 	qglBegin (GL_QUADS);
 
 	qglTexCoord2f (0, 1);
-	VectorMA (e->origin, -frame->origin_y, up, point);
-	VectorMA (point, -frame->origin_x, right, point);
+	VectorMA (e->origin, -frame->origin_y * sc, up, point);
+	VectorMA (point, -frame->origin_x * sc, right, point);
 	qglVertex3fv (point);
 
 	qglTexCoord2f (0, 0);
-	VectorMA (e->origin, frame->height - frame->origin_y, up, point);
-	VectorMA (point, -frame->origin_x, right, point);
+	VectorMA (e->origin, (frame->height - frame->origin_y) * sc, up, point);
+	VectorMA (point, -frame->origin_x * sc, right, point);
 	qglVertex3fv (point);
 
 	qglTexCoord2f (1, 0);
-	VectorMA (e->origin, frame->height - frame->origin_y, up, point);
-	VectorMA (point, frame->width - frame->origin_x, right, point);
+	VectorMA (e->origin, (frame->height - frame->origin_y) * sc, up, point);
+	VectorMA (point, (frame->width - frame->origin_x) * sc, right, point);
 	qglVertex3fv (point);
 
 	qglTexCoord2f (1, 1);
-	VectorMA (e->origin, -frame->origin_y, up, point);
-	VectorMA (point, frame->width - frame->origin_x, right, point);
+	VectorMA (e->origin, -frame->origin_y * sc, up, point);
+	VectorMA (point, (frame->width - frame->origin_x) * sc, right, point);
 	qglVertex3fv (point);
 	
 	qglEnd ();
+
+	if (e->flags & RF_DEPTHHACK)
+		qglDepthRange (gldepthmin, gldepthmax);
 
 	qglDisable (GL_ALPHA_TEST);
 	GL_TexEnv( GL_REPLACE );
@@ -1049,6 +1061,7 @@ void R_Register( void )
 
 	gl_drawbuffer = ri.Cvar_Get( "gl_drawbuffer", "GL_BACK", 0 );
 	gl_swapinterval = ri.Cvar_Get( "gl_swapinterval", "1", CVAR_ARCHIVE );
+	gl_anisotropic  = ri.Cvar_Get( "gl_anisotropic", "0", CVAR_ARCHIVE );
 
 	gl_saturatelighting = ri.Cvar_Get( "gl_saturatelighting", "0", 0 );
 
@@ -1285,6 +1298,19 @@ int R_Init( void *hinstance, void *hWnd )
 	else
 	{
 		ri.Con_Printf( PRINT_ALL, "...GL_EXT_compiled_vertex_array not found\n" );
+	}
+
+	if ( strstr( gl_config.extensions_string, "GL_EXT_texture_filter_anisotropic" ) )
+	{
+		qglGetFloatv( GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &gl_config.max_anisotropy );
+		gl_config.has_anisotropy = true;
+		ri.Con_Printf( PRINT_ALL, "...using GL_EXT_texture_filter_anisotropic (max %0.0f)\n", gl_config.max_anisotropy );
+	}
+	else
+	{
+		gl_config.has_anisotropy = false;
+		gl_config.max_anisotropy = 1.0f;
+		ri.Con_Printf( PRINT_ALL, "...GL_EXT_texture_filter_anisotropic not found\n" );
 	}
 
 	if ( strstr( gl_config.extensions_string, "WGL_EXT_swap_control" ) )
