@@ -85,33 +85,46 @@ qboolean VID_CreateWindow( int width, int height, qboolean fullscreen )
     if (!RegisterClass (&wc) )
 		ri.Sys_Error (ERR_FATAL, "Couldn't register window class");
 
-	if (fullscreen)
+	cvar_t *vid_borderless = ri.Cvar_Get ("vid_borderless", "0", CVAR_ARCHIVE);
+
+	if (fullscreen || (vid_borderless && vid_borderless->value))
 	{
-		exstyle = WS_EX_TOPMOST;
-		stylebits = WS_POPUP|WS_VISIBLE;
+		if (vid_borderless && vid_borderless->value)
+		{
+			exstyle = WS_EX_APPWINDOW;
+			stylebits = WS_POPUP | WS_VISIBLE;
+			x = 0;
+			y = 0;
+			w = GetSystemMetrics (SM_CXSCREEN);
+			h = GetSystemMetrics (SM_CYSCREEN);
+		}
+		else
+		{
+			exstyle = WS_EX_TOPMOST;
+			stylebits = WS_POPUP|WS_VISIBLE;
+			x = 0;
+			y = 0;
+			w = width;
+			h = height;
+		}
 	}
 	else
 	{
 		exstyle = 0;
 		stylebits = WINDOW_STYLE;
+
+		r.left = 0;
+		r.top = 0;
+		r.right  = width;
+		r.bottom = height;
+
+		AdjustWindowRect (&r, stylebits, FALSE);
+
+		w = r.right - r.left;
+		h = r.bottom - r.top;
 	}
 
-	r.left = 0;
-	r.top = 0;
-	r.right  = width;
-	r.bottom = height;
-
-	AdjustWindowRect (&r, stylebits, FALSE);
-
-	w = r.right - r.left;
-	h = r.bottom - r.top;
-
-	if (fullscreen)
-	{
-		x = 0;
-		y = 0;
-	}
-	else
+	if (!fullscreen && (!vid_borderless || !vid_borderless->value))
 	{
 		vid_xpos = ri.Cvar_Get ("vid_xpos", "0", 0);
 		vid_ypos = ri.Cvar_Get ("vid_ypos", "0", 0);
@@ -590,6 +603,13 @@ void GLimp_EndFrame (void)
 
 	err = qglGetError();
 	assert( err == GL_NO_ERROR );
+
+	if ( gl_swapinterval->modified )
+	{
+		gl_swapinterval->modified = false;
+		if ( qwglSwapIntervalEXT )
+			qwglSwapIntervalEXT( (int)gl_swapinterval->value );
+	}
 
 	if ( stricmp( gl_drawbuffer->string, "GL_BACK" ) == 0 )
 	{

@@ -31,6 +31,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <conio.h>
 #include "../win32/conproc.h"
 
+#ifdef USE_SDL2
+#include <SDL2/SDL.h>
+#include "../client/input.h"
+#endif
+
 #define MINIMUM_WIN_MEMORY	0x0a00000
 #define MAXIMUM_WIN_MEMORY	0x1000000
 
@@ -465,6 +470,9 @@ Send Key_Event calls
 */
 void Sys_SendKeyEvents (void)
 {
+#ifdef USE_SDL2
+	IN_Frame ();
+#else
     MSG        msg;
 
 	while (PeekMessage (&msg, NULL, 0, 0, PM_NOREMOVE))
@@ -475,8 +483,7 @@ void Sys_SendKeyEvents (void)
       	TranslateMessage (&msg);
       	DispatchMessage (&msg);
 	}
-
-	// grab frame time 
+#endif
 	sys_frame_time = timeGetTime();	// FIXME: should this be at start?
 }
 
@@ -490,6 +497,16 @@ Sys_GetClipboardData
 */
 char *Sys_GetClipboardData( void )
 {
+#ifdef USE_SDL2
+	static char clipbuf[4096];
+	char *text = SDL_GetClipboardText();
+	if ( !text || !text[0] )
+		return NULL;
+	strncpy( clipbuf, text, sizeof(clipbuf) - 1 );
+	clipbuf[sizeof(clipbuf) - 1] = 0;
+	SDL_free( text );
+	return clipbuf;
+#else
 	char *data = NULL;
 	char *cliptext;
 
@@ -509,6 +526,7 @@ char *Sys_GetClipboardData( void )
 		CloseClipboard();
 	}
 	return data;
+#endif
 }
 
 /*
@@ -713,6 +731,9 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 		}
 	}
 
+	#ifdef USE_SDL2
+	SDL_SetMainReady();
+#endif
 	Qcommon_Init (argc, argv);
 	oldtime = Sys_Milliseconds ();
 
@@ -725,6 +746,9 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 			Sleep (1);
 		}
 
+#ifdef USE_SDL2
+		IN_Frame ();
+#else
 		while (PeekMessage (&msg, NULL, 0, 0, PM_NOREMOVE))
 		{
 			if (!GetMessage (&msg, NULL, 0, 0))
@@ -733,6 +757,7 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 			TranslateMessage (&msg);
    			DispatchMessage (&msg);
 		}
+#endif
 
 		do
 		{

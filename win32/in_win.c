@@ -52,7 +52,55 @@ DWORD	dwControlMap[JOY_MAX_AXES];
 PDWORD	pdwRawValue[JOY_MAX_AXES];
 
 cvar_t	*in_mouse;
+cvar_t	*in_rawmouse;
 cvar_t	*in_joystick;
+
+extern qboolean mouseactive;
+static int raw_delta_x = 0;
+static int raw_delta_y = 0;
+static qboolean raw_mouse_registered = false;
+
+void IN_RegisterRawInput (HWND hWnd)
+{
+	RAWINPUTDEVICE rid;
+
+	if (raw_mouse_registered || !hWnd)
+		return;
+
+	rid.usUsagePage = 0x01; // HID_USAGE_PAGE_GENERIC
+	rid.usUsage = 0x02;     // HID_USAGE_GENERIC_MOUSE
+	rid.dwFlags = 0;
+	rid.hwndTarget = hWnd;
+
+	if (RegisterRawInputDevices (&rid, 1, sizeof(rid)))
+	{
+		raw_mouse_registered = true;
+		Com_Printf ("Raw mouse input registered successfully.\n");
+	}
+}
+
+void IN_RawInputEvent (HRAWINPUT hRawInput)
+{
+	UINT dwSize = 0;
+	BYTE lpb[sizeof(RAWINPUT)];
+
+	if (!in_rawmouse || !in_rawmouse->value || !mouseactive)
+		return;
+
+	GetRawInputData (hRawInput, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+	if (dwSize > sizeof(lpb))
+		return;
+
+	if (GetRawInputData (hRawInput, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
+		return;
+
+	RAWINPUT *raw = (RAWINPUT *)lpb;
+	if (raw->header.dwType == RIM_TYPEMOUSE)
+	{
+		raw_delta_x += raw->data.mouse.lLastX;
+		raw_delta_y += raw->data.mouse.lLastY;
+	}
+}
 
 
 // none of these cvars are saved over a session
@@ -175,6 +223,9 @@ void IN_ActivateMouse (void)
 	window_center_x = (window_rect.right + window_rect.left)/2;
 	window_center_y = (window_rect.top + window_rect.bottom)/2;
 
+	if (in_rawmouse && in_rawmouse->value)
+		IN_RegisterRawInput (cl_hwnd);
+
 	SetCursorPos (window_center_x, window_center_y);
 
 	old_x = window_center_x;
@@ -276,17 +327,26 @@ void IN_MouseMove (usercmd_t *cmd)
 	if (!mouseactive)
 		return;
 
-	// find mouse movement
-	if (!GetCursorPos (&current_pos))
-		return;
+	if (in_rawmouse && in_rawmouse->value && raw_mouse_registered)
+	{
+		mx = raw_delta_x;
+		my = raw_delta_y;
+		raw_delta_x = 0;
+		raw_delta_y = 0;
+	}
+	else
+	{
+		// find mouse movement
+		if (!GetCursorPos (&current_pos))
+			return;
 
-	mx = current_pos.x - window_center_x;
-	my = current_pos.y - window_center_y;
+		mx = current_pos.x - window_center_x;
+		my = current_pos.y - window_center_y;
 
-#if 0
-	if (!mx && !my)
-		return;
-#endif
+		// force the mouse to the center, so there's room to move
+		if (mx || my)
+			SetCursorPos (window_center_x, window_center_y);
+	}
 
 	if (m_filter->value)
 	{
@@ -319,10 +379,6 @@ void IN_MouseMove (usercmd_t *cmd)
 	{
 		cmd->forwardmove -= m_forward->value * mouse_y;
 	}
-
-	// force the mouse to the center, so there's room to move
-	if (mx || my)
-		SetCursorPos (window_center_x, window_center_y);
 }
 
 
@@ -348,6 +404,7 @@ void IN_Init (void)
 	// mouse variables
 	m_filter				= Cvar_Get ("m_filter",					"0",		0);
     in_mouse				= Cvar_Get ("in_mouse",					"1",		CVAR_ARCHIVE);
+    in_rawmouse				= Cvar_Get ("in_rawmouse",				"1",		CVAR_ARCHIVE);
 
 	// joystick variables
 	in_joystick				= Cvar_Get ("in_joystick",				"0",		CVAR_ARCHIVE);

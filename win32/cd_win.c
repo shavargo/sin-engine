@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include <windows.h>
 #include "../client/client.h"
+#include "../client/cl_ogg.h"
 
 extern	HWND	cl_hwnd;
 
@@ -183,6 +184,9 @@ void CDAudio_Play2(int track, qboolean looping)
 
 void CDAudio_Play(int track, qboolean looping)
 {
+	if (OGG_Play(track, looping))
+		return;
+
 	// set a loop counter so that this track will change to the
 	// looptrack later
 	loopcounter = 0;
@@ -191,6 +195,7 @@ void CDAudio_Play(int track, qboolean looping)
 
 void CDAudio_Stop(void)
 {
+	OGG_Stop();
 	DWORD	dwReturn;
 
 	if (!enabled)
@@ -416,6 +421,7 @@ LONG CDAudio_MessageHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 void CDAudio_Update(void)
 {
+	OGG_Update();
 	if ( cd_nocd->value != !enabled )
 	{
 		if ( cd_nocd->value )
@@ -435,6 +441,7 @@ void CDAudio_Update(void)
 int CDAudio_Init(void)
 {
 	DWORD	dwReturn;
+	OGG_Init();
 	MCI_OPEN_PARMS	mciOpenParms;
     MCI_SET_PARMS	mciSetParms;
 	int				n;
@@ -484,6 +491,7 @@ int CDAudio_Init(void)
 
 void CDAudio_Shutdown(void)
 {
+	OGG_Shutdown();
 	if (!initialized)
 		return;
 	CDAudio_Stop();
