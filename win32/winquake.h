@@ -21,9 +21,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #pragma warning( disable : 4229 )  // mgraph gets this
 
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#endif
 #include <windows.h>
 
 #include <dsound.h>
+
+void IN_RawInputEvent (HRAWINPUT hRawInput);
+void IN_RegisterRawInput (HWND hWnd);
 
 #define	WINDOW_STYLE	(WS_OVERLAPPED|WS_BORDER|WS_CAPTION|WS_VISIBLE)
 

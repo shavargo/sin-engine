@@ -134,7 +134,22 @@ static void ApplyChanges( void *unused )
 	Cvar_SetValue( "vid_gamma", gamma );
 	Cvar_SetValue( "sw_stipplealpha", s_stipple_box.curvalue );
 	Cvar_SetValue( "gl_picmip", 3 - s_tq_slider.curvalue );
-	Cvar_SetValue( "vid_fullscreen", s_fs_box[s_current_menu_index].curvalue );
+	int fs_choice = s_fs_box[s_current_menu_index].curvalue;
+	if (fs_choice == 2)
+	{
+		Cvar_SetValue( "vid_fullscreen", 0 );
+		Cvar_SetValue( "vid_borderless", 1 );
+	}
+	else if (fs_choice == 1)
+	{
+		Cvar_SetValue( "vid_fullscreen", 1 );
+		Cvar_SetValue( "vid_borderless", 0 );
+	}
+	else
+	{
+		Cvar_SetValue( "vid_fullscreen", 0 );
+		Cvar_SetValue( "vid_borderless", 0 );
+	}
 	Cvar_SetValue( "gl_ext_palettedtexture", s_paletted_texture_box.curvalue );
 	Cvar_SetValue( "gl_finish", s_finish_box.curvalue );
 	Cvar_SetValue( "sw_mode", s_mode_list[SOFTWARE_MENU].curvalue );
@@ -210,16 +225,37 @@ void VID_MenuInit( void )
 {
 	static const char *resolutions[] = 
 	{
-		"[320 240  ]",
-		"[400 300  ]",
-		"[512 384  ]",
-		"[640 480  ]",
-		"[800 600  ]",
-		"[960 720  ]",
-		"[1024 768 ]",
-		"[1152 864 ]",
-		"[1280 960 ]",
-		"[1600 1200]",
+		"[320 240 (4:3)  ]",
+		"[400 300 (4:3)  ]",
+		"[512 384 (4:3)  ]",
+		"[640 480 (4:3)  ]",
+		"[800 600 (4:3)  ]",
+		"[960 720 (4:3)  ]",
+		"[1024 768 (4:3) ]",
+		"[1152 864 (4:3) ]",
+		"[1280 720 (16:9)]",
+		"[1280 800(16:10)]",
+		"[1280 960 (4:3) ]",
+		"[1280 1024(5:4) ]",
+		"[1366 768 (16:9)]",
+		"[1440 900(16:10)]",
+		"[1600 900 (16:9)]",
+		"[1600 1200(4:3) ]",
+		"[1680 1050(16:10",
+		"[1920 1080(16:9)]",
+		"[1920 1200(16:10",
+		"[2560 1080(21:9)]",
+		"[2560 1440(16:9)]",
+		"[2560 1600(16:10",
+		"[3440 1440(21:9)]",
+		"[3840 2160(4K)  ]",
+		0
+	};
+	static const char *fs_names[] =
+	{
+		"windowed",
+		"fullscreen",
+		"borderless",
 		0
 	};
 	static const char *refs[] =
@@ -324,8 +360,11 @@ void VID_MenuInit( void )
 		s_fs_box[i].generic.x	= 0;
 		s_fs_box[i].generic.y	= 40;
 		s_fs_box[i].generic.name	= "fullscreen";
-		s_fs_box[i].itemnames = yesno_names;
-		s_fs_box[i].curvalue = vid_fullscreen->value;
+		s_fs_box[i].itemnames = fs_names;
+		if (Cvar_VariableValue("vid_borderless") > 0)
+			s_fs_box[i].curvalue = 2;
+		else
+			s_fs_box[i].curvalue = vid_fullscreen->value;
 
 		s_defaults_action[i].generic.type = MTYPE_ACTION;
 		s_defaults_action[i].generic.name = "reset to defaults";
