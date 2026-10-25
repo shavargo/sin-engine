@@ -8,9 +8,9 @@
 An open-source engine chassis for **SiN 1 Multiplayer**, built on the id Software **Quake II** GPL codebase with protocol, asset, and renderer compatibility for the Steam release.
 
 > [!TIP]
-> **Stock Client Compatibility**: `sin_ded.exe` is functional and works out-of-the-box with the unmodified **stock SiN Gold client from Steam**! Projectile collision physics (Rocket and Grenade Launchers) and SINMDL 3D mesh rendering are fully implemented.
+> **Dedicated Server**: `sin_ded.exe` is functional and works out-of-the-box with the unmodified **stock SiN Gold client from Steam** as well as `sin_client.exe`!
 >
-> **Client Executable Status**: While `sin_client.exe` is functional, it is not currently playable. Use the stock SiN Gold client from Steam to connect and play.
+> **Client Executable Status**: `sin_client.exe` features modernized SDL2 platform support, widescreen resolutions, authentic 3D menus, model rendering, viewmodel attachments, and client-side weapon effects. Advanced particle and beam systems are in active development.
 
 ---
 
@@ -34,21 +34,30 @@ An open-source engine chassis for **SiN 1 Multiplayer**, built on the id Softwar
 
 ## Current Status
 
+### Dedicated Server (`sin_ded.exe`)
 | Subsystem | Status | Highlights |
 |-----------|--------|------------|
-| **Dedicated Server** | :white_check_mark: Functional | Works with stock **SiN Gold** Steam client! Protocol 7, `SVC_GetChallenge`, `SVC_DirectConnect`, `sv_steamauth 0` |
-| **Game DLL Interface** | :white_check_mark: Functional | Steam SiN `gamex86.dll` (API 14) loads, `InitGame` & `SpawnEntities` work |
-| **Asset Loading** | :white_check_mark: Functional | 128-byte SPAK headers, RBSP/1 BSPs, 12-byte SiN brushsides, `.swl` textures |
+| **Server Host** | :white_check_mark: Functional | Works out-of-the-box with the unmodified **stock SiN Gold Steam client** as well as `sin_client.exe`. Protocol 7, `SVC_GetChallenge`, `SVC_DirectConnect`, `sv_steamauth 0` |
+| **Game DLL Interface** | :white_check_mark: Functional | Steam SiN `gamex86.dll` (API 14) and native `game_sin` submodule load; `InitGame` & `SpawnEntities` work |
+| **Asset Loading** | :white_check_mark: Functional | 128-byte SPAK headers, RBSP/1 BSPs, 12-byte SiN brushsides, `.swl` textures, and `.sin` archives |
 | **Collision / Bounds** | :white_check_mark: Functional | Model bounds via `.def`/`.sam`, zero fell-out errors on `biodm`, authentic `trace_t` + `MASK_PROJECTILE` |
-| **Projectile Physics** | :white_check_mark: Functional | Rocket & Grenade Launcher bounce, deflection angles, and damage multipliers verified |
-| **Client Join** | :white_check_mark: Functional | Stock SiN Gold Steam client connects, receives game state, and enters world |
-| **OpenGL Renderer** | :white_check_mark: Functional | SWL texture loading with palette decode, conback `.tga`, SINMDL 3D mesh + multi-skin rendering |
-| **Client Executable** | :construction: In Progress | While `sin_client.exe` is functional, it is not playable |
+| **Projectile Physics** | :white_check_mark: Functional | Rocket & Grenade Launcher bounce, deflection angles, damage multipliers, and correct world coordinate propagation |
+| **Client Join** | :white_check_mark: Functional | Clients connect, parse challenge and connect packets, download/load baselines, and enter the game |
+
+### Client & Renderer (`sin_client.exe`, `ref_gl.dll`)
+| Subsystem | Status | Highlights |
+|-----------|--------|------------|
+| **OpenGL Renderer** | :white_check_mark: Functional | SWL texture loading with palette decode, conback `.tga`, SINMDL 3D mesh rendering, depth-hack for first-person models, and multi-skin support |
+| **Platform Layer** | :white_check_mark: Functional | Modern SDL2 backend with widescreen/high-DPI display, raw relative mouse input, borderless fullscreen, and OGG audio streaming |
+| **3D Menu & Console** | :white_check_mark: Functional | Authentic SiN 3D interactive main menu (`menu3d.c`) and 3D textured console (`console3d.c`) |
+| **View Weapon Models** | :white_check_mark: Functional | Parented first-person weapon models attach properly to player, cycle animation frames without synthetic time loops, and respect frame 0 |
+| **Client Effects System**| :white_check_mark: Functional | Client-side `.def` frame command processor (`cl_modelcmds.c`) for muzzle flashes, firing sounds, tracers, dlights, and smoke trails |
+| **Client Playability** | :construction: In Progress | In-game rendering, movement, and multiplayer connectivity are functional; advanced particle systems and weapon beams are ongoing |
 
 ### Known Limitations
 
-- **Client Playability**: While `sin_client.exe` is functional, it is not playable.
 - **Steamworks Auth**: Client auth validation is currently stubbed (`sv_steamauth 0` bypasses ticket check).
+- **Beam & Particle Effects**: Specialized beams (`shootbeam`) and secondary particle cascades are being refined.
 
 See [docs/STATUS.md](docs/STATUS.md) and [DELTAS.md](DELTAS.md) for detailed progress tracking.
 
