@@ -22,6 +22,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "client.h"
 
 #ifdef SIN_MP
+static entity_t view_weapon;
+#endif
+
+#ifdef SIN_MP
 #define SIN_ENTITY_DELTA_PARSE
 #include "../sin/sin_entity_delta.c"
 #endif
@@ -1036,6 +1040,8 @@ void CL_AddPacketEntities (frame_t *frame)
 
 #ifdef SIN_MP
 		ent.sin_anim = s1->anim;
+		if (cent->prev.anim != s1->anim)
+			ent.oldframe = ent.frame;
 #endif
 
 		// quad and pent can do different things on client
@@ -1186,22 +1192,31 @@ void CL_AddPacketEntities (frame_t *frame)
 			}
 		}
 
+#ifdef SIN_MP
+		if (s1->number == cl.playernum + 1)
+		{
+			ent.flags |= RF_VIEWERMODEL;
+			continue;
+		}
+		if (s1->parent && s1->parent == cl.playernum + 1)
+		{
+			if (!ent.model && s1->modelindex > 0 && s1->modelindex < MAX_MODELS)
+			{
+				if (cl.configstrings[CS_MODELS + s1->modelindex][0])
+					cl.model_draw[s1->modelindex] = re.RegisterModel(cl.configstrings[CS_MODELS + s1->modelindex]);
+				ent.model = cl.model_draw[s1->modelindex];
+			}
+			CL_MC_ProcessEntity (s1, &ent, true);
+			memcpy(&view_weapon, &ent, sizeof(entity_t));
+			continue;
+		}
+#else
 		if (s1->number == cl.playernum+1)
 		{
 			ent.flags |= RF_VIEWERMODEL;	// only draw from mirrors
-			// FIXME: still pass to refresh
-
-			if (effects & EF_FLAG1)
-				V_AddLight (ent.origin, 225, 1.0, 0.1, 0.1);
-			else if (effects & EF_FLAG2)
-				V_AddLight (ent.origin, 225, 0.1, 0.1, 1.0);
-			else if (effects & EF_TAGTRAIL)						//PGM
-				V_AddLight (ent.origin, 225, 1.0, 1.0, 0.0);	//PGM
-			else if (effects & EF_TRACKERTRAIL)					//PGM
-				V_AddLight (ent.origin, 225, -1.0, -1.0, -1.0);	//PGM
-
 			continue;
 		}
+#endif
 
 		// if set to invisible, skip
 		if (!s1->modelindex)
@@ -1230,6 +1245,10 @@ void CL_AddPacketEntities (frame_t *frame)
 				ent.alpha = 0.3;
 		}
 //pmm
+
+#ifdef SIN_MP
+		CL_MC_ProcessEntity (s1, &ent, false);
+#endif
 
 		// add to refresh list
 		V_AddEntity (&ent);
@@ -1481,45 +1500,32 @@ void CL_AddViewWeapon (player_state_t *ps, player_state_t *ops)
 	entity_t	gun;		// view model
 	int			i;
 
-	// allow the gun to be completely removed
 	if (!cl_gun->value)
 		return;
 
-	// don't draw gun if in wide angle view
 #ifndef SIN_MP
 	if (ps->fov > 90)
 		return;
 #else
-	/* SiN default FOV is often >90; Q2's cull hid the viewgun entirely. */
 	if (ps->fov > 120)
 		return;
 #endif
 
 	memset (&gun, 0, sizeof(gun));
 
-	if (gun_model)
-		gun.model = gun_model;	// development tool
-	else
 #ifdef SIN_MP
-	{
-		int	gmi = cl_entities[cl.playernum + 1].current.gunmodelindex;
-		static int	vg_stat;
-
-		/* Networked gunmodelindex only -- server may fill view_* if game left it 0. */
-		gun.model = NULL;
-		if (gmi > 0 && gmi < MAX_MODELS)
-			gun.model = cl.model_draw[gmi];
-		if (!gun.model && (vg_stat++ % 200) == 0)
-			Com_Printf ("viewgun: miss pn=%i gmi=%i fov=%.0f\n",
-				cl.playernum, gmi, ps->fov);
-	}
+	if (!view_weapon.model)
+		return;
+	gun = view_weapon;
 #else
+	if (gun_model)
+		gun.model = gun_model;
+	else
 		gun.model = cl.model_draw[ps->gunindex];
-#endif
 	if (!gun.model)
 		return;
+#endif
 
-	// set up gun position
 	for (i=0 ; i<3 ; i++)
 	{
 		gun.origin[i] = cl.refdef.vieworg[i] + ops->gunoffset[i]
@@ -1528,33 +1534,34 @@ void CL_AddViewWeapon (player_state_t *ps, player_state_t *ops)
 			ps->gunangles[i], cl.lerpfrac);
 	}
 
+#ifdef SIN_MP
+	gun.flags = (view_weapon.flags & ~RF_VIEWERMODEL) | RF_MINLIGHT | RF_WEAPONMODEL;
+	gun.sin_anim = view_weapon.sin_anim;
+	gun.frame = view_weapon.frame;
+	gun.oldframe = view_weapon.oldframe;
+	gun.backlerp = 1.0 - cl.lerpfrac;
+	VectorCopy (gun.origin, gun.oldorigin);
+
+	CL_MC_SetViewGun (&gun);
+	if (!(view_weapon.flags & RF_DONTDRAW))
+		V_AddEntity (&gun);
+
+	memset (&view_weapon, 0, sizeof(entity_t));
+#else
 	if (gun_frame)
 	{
-		gun.frame = gun_frame;	// development tool
-		gun.oldframe = gun_frame;	// development tool
+		gun.frame = gun_frame;
+		gun.oldframe = gun_frame;
 	}
 	else
 	{
-#ifdef SIN_MP
-		gun.frame = ps->last_gunframe;
-		if (gun.frame == 0)
-			gun.oldframe = 0;
-		else
-			gun.oldframe = ops->last_gunframe;
-		gun.sin_anim = ps->last_gunanim;
-#else
 		gun.frame = ps->gunframe;
-		if (gun.frame == 0)
-			gun.oldframe = 0;	// just changed weapons, don't lerp from old
-		else
-			gun.oldframe = ops->gunframe;
-#endif
+		gun.oldframe = ops->gunframe;
 	}
 
 	gun.flags = RF_MINLIGHT | RF_DEPTHHACK | RF_WEAPONMODEL;
-	gun.backlerp = 1.0 - cl.lerpfrac;
-	VectorCopy (gun.origin, gun.oldorigin);	// don't lerp at all
 	V_AddEntity (&gun);
+#endif
 }
 
 
@@ -1640,8 +1647,10 @@ void CL_CalcViewValues (void)
 	for (i=0 ; i<4 ; i++)
 		cl.refdef.blend[i] = ps->blend[i];
 
+#ifndef SIN_MP
 	// add the weapon
 	CL_AddViewWeapon (ps, ops);
+#endif
 }
 
 /*
@@ -1685,6 +1694,16 @@ void CL_AddEntities (void)
 	CL_CalcViewValues ();
 	// PMM - moved this here so the heat beam has the right values for the vieworg, and can lock the beam to the gun
 	CL_AddPacketEntities (&cl.frame);
+#ifdef SIN_MP
+	{
+		int oldidx = (cl.frame.serverframe - 1) & UPDATE_MASK;
+		frame_t *oldf = &cl.frames[oldidx];
+		if (oldf->serverframe != cl.frame.serverframe - 1 || !oldf->valid)
+			oldf = &cl.frame;
+		CL_AddViewWeapon (&cl.frame.playerstate, &oldf->playerstate);
+	}
+	CL_MC_AddEffects ();
+#endif
 #if 0
 	CL_AddProjectiles ();
 #endif

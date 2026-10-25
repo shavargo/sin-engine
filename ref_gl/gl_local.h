@@ -250,6 +250,7 @@ extern	cvar_t	*gl_drawbuffer;
 extern	cvar_t	*gl_3dlabs_broken;
 extern  cvar_t  *gl_driver;
 extern	cvar_t	*gl_swapinterval;
+extern	cvar_t	*gl_anisotropic;
 extern	cvar_t	*gl_texturemode;
 extern	cvar_t	*gl_texturealphamode;
 extern	cvar_t	*gl_texturesolidmode;
@@ -427,7 +428,15 @@ typedef struct
 	const char *extensions_string;
 
 	qboolean	allow_cds;
+
+	float       max_anisotropy;
+	qboolean    has_anisotropy;
 } glconfig_t;
+
+#ifndef GL_TEXTURE_MAX_ANISOTROPY_EXT
+#define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
+#define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
+#endif
 
 typedef struct
 {

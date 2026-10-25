@@ -778,10 +778,10 @@ void SV_BuildClientFrame (client_t *client)
 		 */
 		if ((ent->svflags & SVF_NOTOWNER) && ent->owner == clent)
 			continue;
+		if ((ent->svflags & SVF_ONLYPARENT) && ent->owner != clent)
+			continue;
 		if (!ent->s.modelindex && !ent->s.effects && !ent->s.sound
 			&& !ent->s.event && !(ent->svflags & 0x00000100))
-			continue;
-		if ((ent->svflags & SVF_ONLYPARENT) && ent->owner != clent)
 			continue;
 #else
 		// ignore ents without visible models unless they have an effect
@@ -876,8 +876,11 @@ void SV_BuildClientFrame (client_t *client)
 		 * is the parent's world centroid for PVS, while s.vieworigin is the
 		 * bone-local offset transmitted on the wire).
 		 */
-		VectorCopy (state->vieworigin, state->origin);
-		VectorCopy (state->viewangles, state->angles);
+		if (ent->s.parent)
+		{
+			VectorCopy (state->vieworigin, state->origin);
+			VectorCopy (state->viewangles, state->angles);
+		}
 #endif
 
 		// don't mark players missiles as solid

@@ -588,7 +588,6 @@ void R_DrawSinModel (entity_t *e)
 	int			s, t, c, anim, fr, ofr;
 	float		backlerp;
 	static int	vg_draw_log;
-	qboolean	weapon_fov_adjusted;
 	image_t		*drawskin;
 
 	if (!currentmodel)
@@ -614,19 +613,13 @@ void R_DrawSinModel (entity_t *e)
 		 * World/TP: trust networked anim+frame (frame 0 is valid).
 		 * Viewgun: time-loop idle when frame unset.
 		 */
-		if (world && e->frame >= 0 && e->frame < m->anims[anim].nframes)
+		if (e->frame >= 0 && e->frame < m->anims[anim].nframes)
 		{
 			fr = e->frame;
 			if (e->oldframe >= 0 && e->oldframe < m->anims[anim].nframes)
 				ofr = e->oldframe;
 			else
 				ofr = fr;
-		}
-		else if (e->frame > 0 && e->frame < m->anims[anim].nframes)
-		{
-			fr = e->frame;
-			ofr = (e->oldframe > 0 && e->oldframe < m->anims[anim].nframes)
-				? e->oldframe : fr;
 		}
 		else if (m->anims[anim].nframes > 1)
 		{
@@ -650,27 +643,13 @@ void R_DrawSinModel (entity_t *e)
 	else
 		R_LightPoint (e->origin, shadelight);
 
-	if (e->flags & RF_DEPTHHACK)
+	if (e->flags & (RF_DEPTHHACK | RF_WEAPONMODEL))
 		qglDepthRange (gldepthmin, gldepthmin + 0.3 * (gldepthmax - gldepthmin));
-
-	weapon_fov_adjusted = false;
-	if ((e->flags & RF_WEAPONMODEL) && (r_newrefdef.fov_x > 90.0f))
-	{
-		qglMatrixMode (GL_PROJECTION);
-		qglPushMatrix ();
-		qglLoadIdentity ();
-		MYgluPerspective (75.0, (float)r_newrefdef.width / (float)r_newrefdef.height, 4, 4096);
-		qglMatrixMode (GL_MODELVIEW);
-		qglCullFace (GL_FRONT);
-		weapon_fov_adjusted = true;
-	}
 
 	qglPushMatrix ();
 	e->angles[PITCH] = -e->angles[PITCH];
-	e->angles[ROLL] = -e->angles[ROLL];
 	R_RotateForEntity (e);
 	e->angles[PITCH] = -e->angles[PITCH];
-	e->angles[ROLL] = -e->angles[ROLL];
 
 	{
 		float	sc = (m && m->def_scale > 0.f) ? m->def_scale : 1.f;
@@ -762,15 +741,9 @@ void R_DrawSinModel (entity_t *e)
 	qglColor3f (1, 1, 1);
 	qglPopMatrix ();
 
-	if (weapon_fov_adjusted)
-	{
-		qglMatrixMode (GL_PROJECTION);
-		qglPopMatrix ();
-		qglMatrixMode (GL_MODELVIEW);
-		qglCullFace (GL_FRONT);
-	}
 
-	if (e->flags & RF_DEPTHHACK)
+
+	if (e->flags & (RF_DEPTHHACK | RF_WEAPONMODEL))
 		qglDepthRange (gldepthmin, gldepthmax);
 }
 
