@@ -36,6 +36,7 @@ void Mod_LoadBrushModel (model_t *mod, void *buffer);
 void Mod_LoadAliasModel (model_t *mod, void *buffer);
 #ifdef SIN_MP
 void Mod_LoadSinDef (model_t *mod, void *buffer);
+void Mod_LoadSinSprite (model_t *mod, void *buffer);
 #endif
 model_t *Mod_LoadModel (model_t *mod, qboolean crash);
 
@@ -234,7 +235,7 @@ model_t *Mod_ForName (char *name, qboolean crash)
 	//
 	// load the file
 	//
-	modfilelen = ri.FS_LoadFile (mod->name, &buf);
+	modfilelen = ri.FS_LoadFile (mod->name, (void **)&buf);
 	if (!buf)
 	{
 		if (crash)
@@ -278,13 +279,9 @@ model_t *Mod_ForName (char *name, qboolean crash)
 		break;
 
 	case SPRT_MAGIC:
-		/*
-		 * SiN .spr is a text script (SPRT\n path …), not Q2 .sp2.
-		 * Must NOT use mod_sprite — R_RegisterModel would treat hunk
-		 * junk as dsprite_t and loop sprout->numframes forever.
-		 */
-		loadmodel->extradata = Hunk_Begin (64);
-		Mod_LoadSinDef (mod, buf);
+		/* SiN .spr text script */
+		loadmodel->extradata = Hunk_Begin (0x40000);
+		Mod_LoadSinSprite (mod, buf);
 		break;
 #endif
 
@@ -1212,6 +1209,178 @@ void Mod_LoadSpriteModel (model_t *mod, void *buffer)
 
 	mod->type = mod_sprite;
 }
+
+#ifdef SIN_MP
+/*
+=================
+Mod_LoadSinSprite
+
+Parses SiN .spr ASCII text scripts ('SPRT' header)
+=================
+*/
+void Mod_LoadSinSprite (model_t *mod, void *buffer)
+{
+	char load_path[MAX_QPATH];
+	char line[256];
+	char *frames[MAX_MD2SKINS];
+	int numframes = 0;
+	float origin_x = 0.5f, origin_y = 0.5f;
+	float scale = 1.0f;
+	const char *p, *end;
+	dsprite_t *sprout;
+	int i, max_w = 0, max_h = 0;
+	char *slash;
+
+	/* Default load_path to directory of sprite model */
+	strncpy (load_path, mod->name, sizeof(load_path) - 1);
+	load_path[sizeof(load_path) - 1] = '\0';
+	slash = strrchr (load_path, '/');
+	if (!slash)
+		slash = strrchr (load_path, '\\');
+	if (slash)
+		*(slash + 1) = '\0';
+	else
+		load_path[0] = '\0';
+
+	p = (const char *)buffer;
+	/* Skip 4-byte 'SPRT' magic */
+	p += 4;
+	end = (const char *)buffer + modfilelen;
+
+	while (p < end)
+	{
+		const char *nl;
+		size_t L;
+		char *tok, *rest, *c;
+
+		while (p < end && (*p == '\r' || *p == '\n' || *p == ' ' || *p == '\t'))
+			p++;
+		if (p >= end)
+			break;
+
+		nl = p;
+		while (nl < end && *nl != '\r' && *nl != '\n')
+			nl++;
+
+		L = (size_t)(nl - p);
+		if (L >= sizeof(line))
+			L = sizeof(line) - 1;
+		memcpy (line, p, L);
+		line[L] = '\0';
+		p = nl;
+
+		/* Strip comments */
+		c = strstr (line, "//");
+		if (c) *c = '\0';
+		c = strstr (line, "/*");
+		if (c) *c = '\0';
+
+		tok = line;
+		while (*tok == ' ' || *tok == '\t')
+			tok++;
+		if (!*tok)
+			continue;
+
+		rest = tok;
+		while (*rest && *rest != ' ' && *rest != '\t')
+			rest++;
+		if (*rest)
+			*rest++ = '\0';
+		while (*rest == ' ' || *rest == '\t')
+			rest++;
+
+		if (!Q_strcasecmp (tok, "path") && rest[0])
+		{
+			Com_sprintf (load_path, sizeof(load_path), "%s", rest);
+			L = strlen (load_path);
+			if (L > 0 && load_path[L-1] != '/' && load_path[L-1] != '\\')
+			{
+				if (L + 1 < sizeof(load_path))
+				{
+					load_path[L] = '/';
+					load_path[L+1] = '\0';
+				}
+			}
+			continue;
+		}
+		if (!Q_strcasecmp (tok, "origin") && rest[0])
+		{
+			origin_x = (float)atof (rest);
+			while (*rest && *rest != ' ' && *rest != '\t') rest++;
+			while (*rest == ' ' || *rest == '\t') rest++;
+			if (*rest)
+				origin_y = (float)atof (rest);
+			continue;
+		}
+		if (!Q_strcasecmp (tok, "scale") && rest[0])
+		{
+			scale = (float)atof (rest);
+			if (scale <= 0.0f) scale = 1.0f;
+			continue;
+		}
+		if (!Q_strcasecmp (tok, "type") || !Q_strcasecmp (tok, "singlesided") ||
+		    !Q_strcasecmp (tok, "luminance") || !Q_strcasecmp (tok, "worldlit") ||
+		    !Q_strcasecmp (tok, "modulate") || !Q_strcasecmp (tok, "overbright") ||
+		    !Q_strcasecmp (tok, "base"))
+		{
+			continue;
+		}
+
+		/* Must be a sprite frame filename */
+		if (numframes < MAX_MD2SKINS)
+		{
+			frames[numframes] = Hunk_Alloc (strlen(tok) + 1);
+			strcpy (frames[numframes], tok);
+			numframes++;
+		}
+	}
+
+	if (numframes < 1)
+	{
+		ri.Con_Printf (PRINT_DEVELOPER, "Mod_LoadSinSprite: %s has no frames\n", mod->name);
+		return;
+	}
+
+	sprout = Hunk_Alloc (sizeof(dsprite_t) + (numframes - 1) * sizeof(dsprframe_t));
+	sprout->ident = SPRT_MAGIC;
+	sprout->version = 1;
+	sprout->numframes = numframes;
+
+	for (i = 0; i < numframes; i++)
+	{
+		char full[MAX_QPATH];
+		if (frames[i][0] == '/' || frames[i][0] == '\\')
+			Com_sprintf (full, sizeof(full), "%s", frames[i] + 1);
+		else
+			Com_sprintf (full, sizeof(full), "%s%s", load_path, frames[i]);
+
+		strncpy (sprout->frames[i].name, full, sizeof(sprout->frames[i].name) - 1);
+		sprout->frames[i].name[sizeof(sprout->frames[i].name) - 1] = '\0';
+		mod->skins[i] = GL_FindImage (sprout->frames[i].name, it_sprite);
+		if (mod->skins[i])
+		{
+			sprout->frames[i].width = mod->skins[i]->width;
+			sprout->frames[i].height = mod->skins[i]->height;
+		}
+		else
+		{
+			sprout->frames[i].width = 32;
+			sprout->frames[i].height = 32;
+		}
+		sprout->frames[i].origin_x = (int)(sprout->frames[i].width * origin_x);
+		sprout->frames[i].origin_y = (int)(sprout->frames[i].height * origin_y);
+
+		if (sprout->frames[i].width > max_w) max_w = sprout->frames[i].width;
+		if (sprout->frames[i].height > max_h) max_h = sprout->frames[i].height;
+	}
+
+	mod->type = mod_sprite;
+	mod->numframes = numframes;
+	VectorSet (mod->mins, -max_w * 0.5f * scale, -max_w * 0.5f * scale, -max_h * 0.5f * scale);
+	VectorSet (mod->maxs,  max_w * 0.5f * scale,  max_w * 0.5f * scale,  max_h * 0.5f * scale);
+	mod->radius = (float)max_w * scale;
+}
+#endif
 
 //=============================================================================
 

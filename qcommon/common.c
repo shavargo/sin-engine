@@ -108,7 +108,8 @@ void Com_Printf (char *fmt, ...)
 	char		msg[MAXPRINTMSG];
 
 	va_start (argptr,fmt);
-	vsprintf (msg,fmt,argptr);
+	vsnprintf (msg,sizeof(msg),fmt,argptr);
+	msg[sizeof(msg)-1] = 0;
 	va_end (argptr);
 
 	if (rd_target)
@@ -163,7 +164,8 @@ void Com_DPrintf (char *fmt, ...)
 		return;			// don't confuse non-developers with techie stuff...
 
 	va_start (argptr,fmt);
-	vsprintf (msg,fmt,argptr);
+	vsnprintf (msg,sizeof(msg),fmt,argptr);
+	msg[sizeof(msg)-1] = 0;
 	va_end (argptr);
 	
 	Com_Printf ("%s", msg);
@@ -189,7 +191,8 @@ void Com_Error (int code, char *fmt, ...)
 	recursive = true;
 
 	va_start (argptr,fmt);
-	vsprintf (msg,fmt,argptr);
+	vsnprintf (msg,sizeof(msg),fmt,argptr);
+	msg[sizeof(msg)-1] = 0;
 	va_end (argptr);
 	
 	if (code == ERR_DISCONNECT)

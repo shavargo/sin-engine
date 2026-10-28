@@ -182,6 +182,12 @@ qboolean VID_LoadRefresh( char *name )
 		Com_sprintf( fallback, sizeof( fallback ), "./%s", name );
 		reflib_library = SDL_LoadObject( fallback );
 	}
+	if ( !reflib_library )
+	{
+		char fallback[MAX_OSPATH];
+		Com_sprintf( fallback, sizeof( fallback ), "build/%s", name );
+		reflib_library = SDL_LoadObject( fallback );
+	}
 #if !defined(_WIN32)
 	if ( !reflib_library )
 	{

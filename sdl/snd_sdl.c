@@ -21,7 +21,7 @@ See the GNU General Public License for more details.
 #include "../client/client.h"
 #include "../client/snd_loc.h"
 
-dma_t dma;
+extern dma_t dma;
 
 static SDL_AudioDeviceID audio_device = 0;
 static qboolean snd_inited = false;

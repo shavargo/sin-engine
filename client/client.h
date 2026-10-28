@@ -345,7 +345,7 @@ extern	entity_state_t	cl_parse_entities[MAX_PARSE_ENTITIES];
 extern	netadr_t	net_from;
 extern	sizebuf_t	net_message;
 
-void DrawString (int x, int y, char *s);
+void DrawString (int x, int y, const char *s);
 void DrawAltString (int x, int y, const char *s);
 qboolean	CL_CheckOrDownloadFile (char *filename);
 
@@ -493,6 +493,11 @@ void CL_Init (void);
 void CL_FixUpGender(void);
 void CL_Disconnect (void);
 void CL_Disconnect_f (void);
+void CL_Pause_f (void);
+void CL_Begin_f (void);
+void CL_RandomLocalSound (const char *sound);
+void CL_RefreshServerList (void);
+void CL_WriteConfiguration (void);
 void CL_GetChallengePacket (void);
 void CL_PingServers_f (void);
 void CL_Snd_Restart_f (void);
@@ -555,6 +560,7 @@ extern	int			gun_frame;
 extern	struct model_s	*gun_model;
 
 void V_Init (void);
+float CalcFov (float fov_x, float width, float height);
 void V_RenderView( float stereo_separation );
 void V_AddEntity (entity_t *ent);
 void V_AddParticle (vec3_t org, int color, float alpha);

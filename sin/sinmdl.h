@@ -14,11 +14,12 @@
 void	SINMDL_Init (void);
 void	SINMDL_Shutdown (void);
 
-/* Called when game registers a models/*.def via modelindex */
+/* Called when game registers a models def via modelindex */
 void	SINMDL_RegisterDefForIndex (int modelindex, const char *defpath);
 
 qboolean	SINMDL_IsModel (int modelindex);
 void	SINMDL_CalculateBounds (int modelindex, float scale, vec3_t mins, vec3_t maxs);
+void	SINMDL_Anim_CalculateBounds (int defhandle, int animnum, float scale, vec3_t mins, vec3_t maxs);
 
 int		SINMDL_NumAnims (int modelindex);
 int		SINMDL_NumSkins (int modelindex);

@@ -1,6 +1,8 @@
+#define _GNU_SOURCE
 #include <sys/types.h>
 #include <errno.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -103,10 +105,12 @@ void Sys_Mkdir (char *path)
 
 char *strlwr (char *s)
 {
-	while (*s) {
-		*s = tolower(*s);
-		s++;
+	char *p = s;
+	while (*p) {
+		*p = tolower((unsigned char)*p);
+		p++;
 	}
+	return s;
 }
 
 //============================================

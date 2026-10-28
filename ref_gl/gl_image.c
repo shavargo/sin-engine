@@ -1644,7 +1644,7 @@ void	GL_InitImages (void)
 
 	if ( qglColorTableEXT )
 	{
-		ri.FS_LoadFile( "pics/16to8.dat", &gl_state.d_16to8table );
+		ri.FS_LoadFile( "pics/16to8.dat", (void **)&gl_state.d_16to8table );
 		if ( !gl_state.d_16to8table )
 			ri.Con_Printf (PRINT_ALL, "WARNING: pics/16to8.dat missing (SiN OK)\n");
 	}

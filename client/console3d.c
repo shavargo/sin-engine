@@ -98,7 +98,7 @@ float savex,savey;
 qboolean p_centerx=false,p_centery=false;
 qboolean p_left=false,p_right=false;
 qboolean p_top=false,p_bottom=false;
-cvar_t         *cl_hudfile;
+extern cvar_t         *cl_hudfile;
 static int teletype_delay = 1;
 
 // MED FIXME FIXME
@@ -4500,7 +4500,7 @@ static float CONSOLE_DetermineHeightFromLayoutString( const char *s, console3d_t
 		{
 			token = COM_GetToken( &s1, false );
 			re.DrawGetPicSize( &width,&height,token );
-			y = max( y,height );
+			y = __max( y,height );
 		}
 		if (!Q_stricmp( token,"box" ))
 		{
@@ -5892,11 +5892,11 @@ CONSOLE_FadeIn
 */
 void CONSOLE_FadeIn( const char *s )
 {
-	con_fadetime_off     = Sinatof( COM_Parse( &s ));
+	con_fadetime_off     = Sinatof( COM_Parse( (char **)&s ));
 	con_fadetime_start   = con_fadetime_off;
-	con_fade_r           = Sinatof( COM_Parse( &s ));
-	con_fade_g           = Sinatof( COM_Parse( &s ));
-	con_fade_b           = Sinatof( COM_Parse( &s ));
+	con_fade_r           = Sinatof( COM_Parse( (char **)&s ));
+	con_fade_g           = Sinatof( COM_Parse( (char **)&s ));
+	con_fade_b           = Sinatof( COM_Parse( (char **)&s ));
 	con_fade_a           = 0;
 	con_fade_direction   = 1;
 }
@@ -5908,11 +5908,11 @@ CONSOLE_FadeOut
 */
 static void CONSOLE_FadeOut( const char *s )
 {
-	con_fadetime_off     = Sinatof( COM_Parse( &s ));
+	con_fadetime_off     = Sinatof( COM_Parse( (char **)&s ));
 	con_fadetime_start   = con_fadetime_off;
-	con_fade_r           = Sinatof( COM_Parse( &s ));
-	con_fade_g           = Sinatof( COM_Parse( &s ));
-	con_fade_b           = Sinatof( COM_Parse( &s ));
+	con_fade_r           = Sinatof( COM_Parse( (char **)&s ));
+	con_fade_g           = Sinatof( COM_Parse( (char **)&s ));
+	con_fade_b           = Sinatof( COM_Parse( (char **)&s ));
 	con_fade_a           = 0;
 	con_fade_direction   = -1;
 }
@@ -5933,7 +5933,7 @@ static void CONSOLE_PrintFile( const char *s )
 		FS_FreeFile( file_data );
 	}
 
-	COM_StripExtension( COM_Parse( &s ), filename );
+	COM_StripExtension( COM_Parse( (char **)&s ), filename );
 	COM_DefaultExtension( filename, ".txt" );
 	FS_LoadFile( va( "%s", filename ), &file_data );
 	CONSOLE_ResetTypeTimer( cls.mainconsole );
@@ -5964,7 +5964,7 @@ static void CONSOLE_LoadGenericOverlay( const char *s )
 		FS_FreeFile( generic_overlay );
 	}
 
-	strcpy( filename, COM_Parse( &s ) );
+	strcpy( filename, COM_Parse( (char **)&s ) );
 
 	if ( con_vidres == CON_HIRES )
 		COM_DefaultExtension( filename, ".hdh" );
@@ -5988,7 +5988,7 @@ static void CONSOLE_LoadIntermissionFile( const char *s )
 		FS_FreeFile( intermission_data );
 	}
 
-	strcpy( filename, COM_Parse( &s ) );
+	strcpy( filename, COM_Parse( (char **)&s ) );
 
 	if ( con_vidres == CON_HIRES )
 		COM_DefaultExtension( filename, ".imh" );
@@ -6078,9 +6078,9 @@ static void CONSOLE_DeathMessage( const char *s )
 	clientinfo_t   *vi, *ai;
 	int num;
 
-	victim       = atoi( COM_Parse( &s ) );
-	attacker     = atoi( COM_Parse( &s ) );
-	meansofdeath = atoi( COM_Parse( &s ) );
+	victim       = atoi( COM_Parse( (char **)&s ) );
+	attacker     = atoi( COM_Parse( (char **)&s ) );
+	meansofdeath = atoi( COM_Parse( (char **)&s ) );
 
 	if ( victim >= MAX_CLIENTS || victim < 0 )
 		Com_Error ( ERR_DROP, "Deatmatch death message: client >= MAX_CLIENTS" );
@@ -6415,7 +6415,7 @@ void CONSOLE_ParseCommandString( const char *s, int type )
 	// Parse the rest of the commands left.
 	while (s)
 	{
-		token = COM_Parse ( &s );
+		token = COM_Parse ( (char **)&s );
 
 		if (!strcmp( token, "dm" ))
 		{
@@ -6479,7 +6479,7 @@ void CONSOLE_ParseCommandString( const char *s, int type )
 		}
 		if (!strcmp( token, "spr" ))
 		{
-			float time = Sinatof( COM_Parse( &s ));
+			float time = Sinatof( COM_Parse( (char **)&s ));
 			CONSOLE_ScreenPrint( s,time );
 			continue;
 		}
@@ -6844,10 +6844,10 @@ void CONSOLE_DialogPrint( const char *string )
 	// and the textual portion.
 
 	// Get the icon index
-	dialog_icon = atoi( COM_Parse( &string ) );
+	dialog_icon = atoi( COM_Parse( (char **)&string ) );
 
 	// Get the dialog string
-	strcpy( dialog_src, COM_Parse( &string ) );
+	strcpy( dialog_src, COM_Parse( (char **)&string ) );
 
 	src = dialog_src;
 	dst = dialog_string;

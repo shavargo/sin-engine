@@ -18,6 +18,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 // r_main.c
+#include <ctype.h>
 #include "gl_local.h"
 
 void R_Clear (void);
@@ -1684,6 +1685,7 @@ refexport_t GetRefAPI (refimport_t rimp )
 {
 	refexport_t	re;
 
+	memset (&re, 0, sizeof (re));
 	ri = rimp;
 
 	re.api_version = API_VERSION;

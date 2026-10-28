@@ -5,5 +5,6 @@
 
 void SINDrawString( int x, int y, const char *s );
 void DrawAltString( int x, int y, const char *s );
+void CONSOLE_BeginLevel_f( void );
 
 #endif

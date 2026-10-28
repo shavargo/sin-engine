@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <assert.h>
 
 #include "gl_local.h"
+#include <ctype.h>
 
 static vec3_t	modelorg;		// relative to viewpoint
 
@@ -595,6 +596,7 @@ void R_DrawAlphaSurfaces (void)
     qglLoadMatrixf (r_world_matrix);
 
 	qglEnable (GL_BLEND);
+	qglDepthMask (0);
 	GL_TexEnv( GL_MODULATE );
 
 	// the textures are prescaled up for a better lighting range,
@@ -619,6 +621,7 @@ void R_DrawAlphaSurfaces (void)
 
 	GL_TexEnv( GL_REPLACE );
 	qglColor4f (1,1,1,1);
+	qglDepthMask (1);
 	qglDisable (GL_BLEND);
 
 	r_alpha_surfaces = NULL;
@@ -915,7 +918,8 @@ void R_DrawInlineBModel (void)
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
-			if (psurf->texinfo->flags & (SURF_TRANS33|SURF_TRANS66) )
+			if ((psurf->texinfo->flags & (SURF_TRANS33|SURF_TRANS66)) ||
+			    (psurf->texinfo->image && psurf->texinfo->image->has_alpha))
 			{	// add to the translucent chain
 				psurf->texturechain = r_alpha_surfaces;
 				r_alpha_surfaces = psurf;
@@ -1122,7 +1126,8 @@ void R_RecursiveWorldNode (mnode_t *node)
 		{	// just adds to visible sky bounds
 			R_AddSkySurface (surf);
 		}
-		else if (surf->texinfo->flags & (SURF_TRANS33|SURF_TRANS66))
+		else if ((surf->texinfo->flags & (SURF_TRANS33|SURF_TRANS66)) ||
+		         (surf->texinfo->image && surf->texinfo->image->has_alpha))
 		{	// add to the translucent chain
 			surf->texturechain = r_alpha_surfaces;
 			r_alpha_surfaces = surf;
