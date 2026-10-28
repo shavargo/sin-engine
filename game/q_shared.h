@@ -1,4 +1,19 @@
+#ifdef _WIN32
 #define Q_vsnprintf _vsnprintf
+#else
+#define Q_vsnprintf vsnprintf
+#endif
+
+#ifndef __max
+#define __max(a,b) (((a) > (b)) ? (a) : (b))
+#endif
+#ifndef __min
+#define __min(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef _WIN32
+char *strlwr (char *s);
+#endif
 /*
 Copyright (C) 1997-2001 Id Software, Inc.
 

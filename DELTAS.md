@@ -27,6 +27,12 @@ Status: `todo` | `stub` | `ported` | `verified`
 | — | `CL_WriteConfiguration` | ported | `MAX_OSPATH` for config.cfg path |
 | — | `FS_ExecAutoexec` | ported | `MAX_OSPATH` (was overflowing on long basedirs) |
 | — | `InitConProc` | ported | NULL-init qhost handles (uninit garbage → false qhost) |
+| — | `Mod_LoadSinSprite` | ported | SiN `SPRT` text script parser; solves transient effects grey boxes |
+| — | `R_DrawAlphaSurfaces` | ported | Translucent glass/window surface alpha sorting & depth masking |
+| — | `Com_Printf` / `VID_Printf` | ported | Bounded `vsnprintf` to prevent `GL_EXTENSIONS` stack overflow |
+| — | `Linux Native SDL2 & ref_gl` | verified | Built and run on Kubuntu 26.04 x86_64; zero compiler/linker errors on GCC 14 |
+| — | `WGL Guards in SDL` | ported | Guarded Win32 WGL function pointers in `sdl/qgl_sdl.c` under `_WIN32` |
+| — | `Game DLL Search Fallback` | ported | Added build/base and relative fallbacks for native `gamex86_64.so` discovery |
 
 ## Working Method
 

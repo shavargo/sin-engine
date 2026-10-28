@@ -22,13 +22,9 @@ See the GNU General Public License for more details.
 
 static cvar_t *in_mouse;
 static cvar_t *m_filter;
-static cvar_t *sensitivity;
-static cvar_t *m_yaw;
-static cvar_t *m_pitch;
-static cvar_t *m_forward;
-static cvar_t *m_side;
-static cvar_t *freelook;
 static cvar_t *in_joystick;
+
+void VID_NewWindow( int width, int height );
 
 static int mouse_x = 0;
 static int mouse_y = 0;

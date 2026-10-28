@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "glw_sdl.h"
 #include <SDL2/SDL.h>
 
+#ifdef _WIN32
 int   ( WINAPI * qwglChoosePixelFormat )(HDC, CONST PIXELFORMATDESCRIPTOR *);
 int   ( WINAPI * qwglDescribePixelFormat) (HDC, int, UINT, LPPIXELFORMATDESCRIPTOR);
 int   ( WINAPI * qwglGetPixelFormat)(HDC);
@@ -60,6 +61,7 @@ int  ( WINAPI * qwglGetLayerPaletteEntries)(HDC, int, int, int,
                                                 COLORREF *);
 BOOL ( WINAPI * qwglRealizeLayerPalette)(HDC, int, BOOL);
 BOOL ( WINAPI * qwglSwapLayerBuffers)(HDC, UINT);
+#endif
 
 void ( APIENTRY * qglAccum )(GLenum op, GLfloat value);
 void ( APIENTRY * qglAlphaFunc )(GLenum func, GLclampf ref);
@@ -401,9 +403,11 @@ void ( APIENTRY * qglViewport )(GLint x, GLint y, GLsizei width, GLsizei height)
 void ( APIENTRY * qglLockArraysEXT)( int, int);
 void ( APIENTRY * qglUnlockArraysEXT) ( void );
 
+#ifdef _WIN32
 BOOL ( WINAPI * qwglSwapIntervalEXT)( int interval );
 BOOL ( WINAPI * qwglGetDeviceGammaRampEXT)( unsigned char *, unsigned char *, unsigned char * );
 BOOL ( WINAPI * qwglSetDeviceGammaRampEXT)( const unsigned char *, const unsigned char *, const unsigned char * );
+#endif
 void ( APIENTRY * qglPointParameterfEXT)( GLenum param, GLfloat value );
 void ( APIENTRY * qglPointParameterfvEXT)( GLenum param, const GLfloat *value );
 void ( APIENTRY * qglColorTableEXT)( int, int, int, int, int, const void * );
@@ -2982,6 +2986,7 @@ void QGL_Shutdown( void )
 	qglVertexPointer             = NULL;
 	qglViewport                  = NULL;
 
+#ifdef _WIN32
 	qwglCopyContext              = NULL;
 	qwglCreateContext            = NULL;
 	qwglCreateLayerContext       = NULL;
@@ -3009,6 +3014,7 @@ void QGL_Shutdown( void )
 
 	qwglGetDeviceGammaRampEXT = NULL;
 	qwglSetDeviceGammaRampEXT = NULL;
+#endif
 }
 
 #	pragma warning (disable : 4113 4133 4047 )
@@ -3393,6 +3399,7 @@ qboolean QGL_Init( const char *dllname )
 	qglVertexPointer             = 	dllVertexPointer             = GPA( "glVertexPointer" );
 	qglViewport                  = 	dllViewport                  = GPA( "glViewport" );
 
+#ifdef _WIN32
 	qwglCopyContext              = GPA( "wglCopyContext" );
 	qwglCreateContext            = GPA( "wglCreateContext" );
 	qwglCreateLayerContext       = GPA( "wglCreateLayerContext" );
@@ -3417,6 +3424,7 @@ qboolean QGL_Init( const char *dllname )
 	qwglSwapBuffers              = GPA( "wglSwapBuffers" );
 
 	qwglSwapIntervalEXT = 0;
+#endif
 	qglPointParameterfEXT = 0;
 	qglPointParameterfvEXT = 0;
 	qglColorTableEXT = 0;

@@ -264,7 +264,7 @@ char *createLightstyleFromTGA (const char *filename)
 
 	if (width > (MAX_LIGHTSTYLE_STRINGLENGTH/4)-4)
 	{
-		Com_DPrintf(DEVELOPER_MSG_CLIENT, "createLightstyleFromTGA: Light style too large, truncating.\n");
+		Com_DPrintf("createLightstyleFromTGA: Light style too large, truncating.\n");
 		width = (MAX_LIGHTSTYLE_STRINGLENGTH/4)-4;
 	}
 

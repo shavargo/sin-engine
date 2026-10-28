@@ -58,7 +58,7 @@ void MENU_DrawInventoryModel (float x, float y, float width, float height, float
 		static int direction=1;
 		static int animnum = -1;
 		static int framenum = 0;
-		static struct model_t *currentmodel = NULL;
+		static struct model_s *currentmodel = NULL;
 		static int lastframechange = 0;
 		int defhandle;
 		entity_t entity;
@@ -162,7 +162,7 @@ void MENU_DrawPlayerModel(float x, float y, float width, float height)
 	{
 		static int yaw;
 		static int animnum = -1;
-		static struct model_t *currentmodel = NULL;
+		static struct model_s *currentmodel = NULL;
 		static int lastframechange = 0;
 		int defhandle;
 		entity_t entity[2];
@@ -429,7 +429,7 @@ void MENU_UpdateSkinList(void *self)
 	char *s;
 
 	s = item->localdata;
-	strcpy(token, COM_Parse((const char **) &s));
+	strcpy(token, COM_Parse(&s));
 
 #ifdef SIN_DEMO
 	if (!strstr(item->list.itemnames[item->list.curvalue], "pl_blade"))
@@ -602,7 +602,7 @@ void MENU_UpdateBikeSkinList(void *self)
 	char *s;
 
 	s = item->localdata;
-	strcpy(token, COM_Parse((const char **)&s));
+	strcpy(token, COM_Parse(&s));
 
 	// Find the menu item that we need to update with the skins information.
 	for (i = 0; i < p->numlevels; i++)

@@ -211,7 +211,7 @@ static void MENU_UpdateBoundValues( console3d_t *p )
 
 				while (1)
 				{
-					token = COM_Parse((const char **)&s );
+					token = COM_Parse(&s );
 					if (!token[0])
 						break;
 
@@ -219,17 +219,17 @@ static void MENU_UpdateBoundValues( console3d_t *p )
 					{
 						if (strstr( token,"divide" ))
 						{
-							float scale = Sinatof( COM_Parse((const char **)&s ));
+							float scale = Sinatof( COM_Parse(&s ));
 
-							strncpy( cvar,COM_Parse((const char **)&s ),sizeof(cvar)-1 );
+							strncpy( cvar,COM_Parse(&s ),sizeof(cvar)-1 );
 							// Scale the value before setting the menu
 							value = Cvar_VariableValue( cvar ) * scale;
 						}
 						else if (strstr( token,"scale" ))
 						{
-							float scale = Sinatof( COM_Parse((const char **)&s ));
+							float scale = Sinatof( COM_Parse(&s ));
 
-							strncpy( cvar,COM_Parse((const char **)&s ),sizeof(cvar)-1 );
+							strncpy( cvar,COM_Parse(&s ),sizeof(cvar)-1 );
 							// Scale the value before setting the menu
 							value = Cvar_VariableValue( cvar ) / scale;
 						}
@@ -238,9 +238,9 @@ static void MENU_UpdateBoundValues( console3d_t *p )
 							// Clamp the cvar before we set the menu's value
 							float min,max;
 
-							min = Sinatof( COM_Parse((const char **)&s ));
-							max = Sinatof( COM_Parse((const char **)&s ));
-							strncpy( cvar,COM_Parse((const char **)&s ),sizeof(cvar)-1 );
+							min = Sinatof( COM_Parse(&s ));
+							max = Sinatof( COM_Parse(&s ));
+							strncpy( cvar,COM_Parse(&s ),sizeof(cvar)-1 );
 							Cvar_SetValue( cvar,ClampCvar( min,max,Cvar_VariableValue( cvar )));
 							value = Cvar_VariableValue( cvar );
 						}
@@ -249,12 +249,12 @@ static void MENU_UpdateBoundValues( console3d_t *p )
 							// Set this menuitem based on the outcome of the condition
 
 							// Get the cvar
-							strncpy( cvar,COM_Parse((const char **)&s ),sizeof(cvar)-1 );
+							strncpy( cvar,COM_Parse(&s ),sizeof(cvar)-1 );
 
 							// Get the condition
-							strncpy( cond,COM_Parse((const char **)&s ),sizeof(cond)-1 );
+							strncpy( cond,COM_Parse(&s ),sizeof(cond)-1 );
 
-							condvalue = Sinatof( COM_Parse((const char **)&s ));
+							condvalue = Sinatof( COM_Parse(&s ));
 
 							// evaluate condition
 							if (!strcmp( cond,"ifless" ))
@@ -276,14 +276,14 @@ static void MENU_UpdateBoundValues( console3d_t *p )
 						else if (strstr( token,"item" ))
 						{
 							searchforitem = true;
-							strncpy( cvar,COM_Parse((const char **)&s ),sizeof(cvar)-1 );
+							strncpy( cvar,COM_Parse(&s ),sizeof(cvar)-1 );
 							stringvalue = Cvar_VariableString( cvar );
 							value = 0;		/* silence compiler */
 						}
 						else
 						{
 							// Just get the cvar's name & value
-							strncpy( cvar,COM_Parse((const char **)&s ),sizeof(cvar)-1 );
+							strncpy( cvar,COM_Parse(&s ),sizeof(cvar)-1 );
 							value = Cvar_VariableValue( cvar );
 						}
 

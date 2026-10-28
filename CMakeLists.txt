@@ -31,6 +31,21 @@ if(USE_SDL2)
 endif()
 
 add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+if(NOT WIN32)
+  add_compile_definitions(
+    stricmp=strcasecmp
+    strnicmp=strncasecmp
+    _strdup=strdup
+    _stricmp=strcasecmp
+    _strnicmp=strncasecmp
+    _vsnprintf=vsnprintf
+  )
+  add_compile_options(
+    -Wno-incompatible-pointer-types
+    -Wno-implicit-function-declaration
+    -Wno-discarded-qualifiers
+  )
+endif()
 
 set(QCOMMON_SOURCES
   qcommon/cmd.c
@@ -124,7 +139,7 @@ if(SIN_BUILD_GAME AND NOT SIN_STATIC_GAME)
     set_target_properties(game PROPERTIES
       OUTPUT_NAME "${GAME_LIB_NAME}"
       PREFIX ""
-      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/baseq2"
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/base"
     )
   endif()
 endif()
@@ -252,7 +267,7 @@ if(SIN_BUILD_REF_GL)
     set(REF_GL_SYSTEM_SOURCES win32/q_shwin.c)
     set(REF_GL_SYSTEM_LIBS opengl32 winmm)
   else()
-    set(REF_GL_SYSTEM_SOURCES linux/q_shlinux.c)
+    set(REF_GL_SYSTEM_SOURCES linux/q_shlinux.c qcommon/glob.c)
     set(REF_GL_SYSTEM_LIBS GL m)
   endif()
 

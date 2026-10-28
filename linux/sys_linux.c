@@ -238,8 +238,12 @@ void *Sys_GetGameAPI (void *parms)
 	{
 		path = FS_NextPath (path);
 		if (!path)
-			return NULL;		// couldn't find one anywhere
-		sprintf (name, "%s/%s/%s", curpath, path, gamename);
+			break;
+		if (path[0] == '/')
+			Com_sprintf (name, sizeof(name), "%s/%s", path, gamename);
+		else
+			Com_sprintf (name, sizeof(name), "%s/%s/%s", curpath, path, gamename);
+
 		game_library = dlopen (name, RTLD_NOW );
 		if (game_library)
 		{
@@ -247,6 +251,29 @@ void *Sys_GetGameAPI (void *parms)
 			break;
 		}
 	}
+
+	if (!game_library)
+	{
+		const char *fallbacks[] = {
+			"base/%s",
+			"build/base/%s",
+			"./%s",
+			NULL
+		};
+		for (int i = 0; fallbacks[i]; i++)
+		{
+			Com_sprintf (name, sizeof(name), fallbacks[i], gamename);
+			game_library = dlopen (name, RTLD_NOW);
+			if (game_library)
+			{
+				Com_DPrintf ("LoadLibrary (%s)\n", name);
+				break;
+			}
+		}
+	}
+
+	if (!game_library)
+		return NULL;
 
 	GetGameAPI = (void *)dlsym (game_library, "GetGameAPI");
 	if (!GetGameAPI)
@@ -267,8 +294,10 @@ void Sys_AppActivate (void)
 void Sys_SendKeyEvents (void)
 {
 #ifndef DEDICATED_ONLY
+#ifndef USE_SDL2
 	if (KBD_Update_fp)
 		KBD_Update_fp();
+#endif
 #endif
 
 	// grab frame time 
