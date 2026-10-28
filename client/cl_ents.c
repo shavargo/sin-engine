@@ -1040,8 +1040,6 @@ void CL_AddPacketEntities (frame_t *frame)
 
 #ifdef SIN_MP
 		ent.sin_anim = s1->anim;
-		if (cent->prev.anim != s1->anim)
-			ent.oldframe = ent.frame;
 #endif
 
 		// quad and pent can do different things on client
@@ -1075,8 +1073,22 @@ void CL_AddPacketEntities (frame_t *frame)
 		}
 // pmm
 //======
+#ifdef SIN_MP
+		/* SiN multi-SAM skeletal models: prevent cross-animation pose blending and handle wrap */
+		if (cent->prev.anim != s1->anim || s1->frame < cent->prev.frame)
+		{
+			ent.oldframe = ent.frame;
+			ent.backlerp = 0.0f;
+		}
+		else
+		{
+			ent.oldframe = cent->prev.frame;
+			ent.backlerp = 1.0f - cl.lerpfrac;
+		}
+#else
 		ent.oldframe = cent->prev.frame;
 		ent.backlerp = 1.0 - cl.lerpfrac;
+#endif
 
 		if (renderfx & (RF_FRAMELERP|RF_BEAM))
 		{	// step origin discretely, because the frames
@@ -1539,7 +1551,7 @@ void CL_AddViewWeapon (player_state_t *ps, player_state_t *ops)
 	gun.sin_anim = view_weapon.sin_anim;
 	gun.frame = view_weapon.frame;
 	gun.oldframe = view_weapon.oldframe;
-	gun.backlerp = 1.0 - cl.lerpfrac;
+	gun.backlerp = view_weapon.backlerp;
 	VectorCopy (gun.origin, gun.oldorigin);
 
 	CL_MC_SetViewGun (&gun);

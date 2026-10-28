@@ -523,6 +523,153 @@ static void MC_CmdShootBullets (const mc_ctx_t *c, const sinmdl_singlecmd_t *cmd
 	(void)dir;
 }
 
+static void MC_CmdShootBeam (const mc_ctx_t *c, const sinmdl_singlecmd_t *cmd)
+{
+	int			i = 1;
+	const char	*bone = NULL;
+	const char	*beammodel = NULL;
+	float		length = 1024.0f;
+	float		minoffset = 0.0f, maxoffset = 0.0f;
+	float		life = 100.0f;
+	vec3_t		src, f, r, u, start, end;
+	trace_t		tr;
+	mc_fx_t		*fx;
+
+	if (cmd->num_args > 1 && !MC_IsNumber (cmd->args[1]))
+	{
+		bone = cmd->args[1];
+		i = 2;
+	}
+	if (i < cmd->num_args && !MC_IsNumber (cmd->args[i]))
+	{
+		beammodel = cmd->args[i++];
+	}
+
+	for (; i < cmd->num_args - 1; i++)
+	{
+		if (!Q_stricmp (cmd->args[i], "length"))
+			length = (float)atof (cmd->args[i + 1]);
+		else if (!Q_stricmp (cmd->args[i], "minoffset"))
+			minoffset = (float)atof (cmd->args[i + 1]);
+		else if (!Q_stricmp (cmd->args[i], "maxoffset"))
+			maxoffset = (float)atof (cmd->args[i + 1]);
+		else if (!Q_stricmp (cmd->args[i], "life"))
+			life = (float)atof (cmd->args[i + 1]) * 1000.0f;
+	}
+
+	if (!MC_BonePos (c, bone ? bone : "barrel", src, f, r, u))
+	{
+		if (c->viewgun)
+			VectorMA (cl.refdef.vieworg, 16, cl.v_forward, src);
+		else
+			VectorCopy (c->origin, src);
+	}
+
+	if (c->viewgun)
+		VectorCopy (cl.refdef.vieworg, start);
+	else
+		VectorCopy (src, start);
+
+	if (c->viewgun)
+		VectorMA (start, length, cl.v_forward, end);
+	else
+	{
+		vec3_t forward;
+		AngleVectors (c->angles, forward, NULL, NULL);
+		VectorMA (start, length, forward, end);
+	}
+
+	if (maxoffset > 0.0f)
+	{
+		float offset = minoffset + (maxoffset - minoffset) * MC_RAND ();
+		VectorMA (end, offset * MC_CRAND (), cl.v_right, end);
+		VectorMA (end, offset * MC_CRAND (), cl.v_up, end);
+	}
+
+	tr = CL_GenericTrace (start, vec3_origin, vec3_origin, end, MASK_SHOT, true, c->entnum);
+	if (tr.fraction < 1.0f)
+		VectorCopy (tr.endpos, end);
+
+	fx = MC_AllocFx ();
+	memset (fx, 0, sizeof (*fx));
+	fx->active = true;
+	fx->beam = true;
+	fx->start = cl.time;
+	fx->life = (int)(life > 10.0f ? life : 80.0f);
+	VectorCopy (src, fx->origin);
+	VectorCopy (end, fx->end);
+	if (beammodel && *beammodel)
+		fx->model = re.RegisterModel (beammodel);
+}
+
+static void MC_CmdExplosion (const mc_ctx_t *c, const sinmdl_singlecmd_t *cmd)
+{
+	float	scale = 1.0f;
+	vec3_t	org;
+	cdlight_t *dl;
+
+	if (cmd->num_args > 1)
+		scale = (float)atof (cmd->args[1]);
+	if (scale <= 0.0f)
+		scale = 1.0f;
+
+	VectorCopy (c->origin, org);
+
+	/* Explosion particle bursts */
+	CL_ExplosionParticles (org);
+
+	/* Dynamic light flash */
+	dl = CL_AllocDlight (0);
+	if (dl)
+	{
+		VectorCopy (org, dl->origin);
+		dl->radius = 350.0f * scale;
+		dl->minlight = 0;
+		dl->die = cl.time + 300;
+		dl->decay = dl->radius / 0.3f;
+		dl->color[0] = 1.0f;
+		dl->color[1] = 0.5f;
+		dl->color[2] = 0.2f;
+	}
+
+	/* Spawn explosion sprite effect */
+	{
+		mc_fx_t *fx = MC_AllocFx ();
+		memset (fx, 0, sizeof (*fx));
+		fx->active = true;
+		fx->start = cl.time;
+		fx->life = 450;
+		VectorCopy (org, fx->origin);
+		fx->model = re.RegisterModel ("sprites/explode.spr");
+		if (fx->model)
+		{
+			fx->scale0 = scale;
+			fx->scaleanim = true;
+			fx->alphafade = true;
+			fx->animate = true;
+			fx->animateonce = true;
+			fx->nframes = MC_SpriteFrames ("sprites/explode.spr");
+			if (fx->nframes <= 0)
+				fx->nframes = 16;
+		}
+	}
+}
+
+extern struct sfx_s *cl_sfx_footsteps[4];
+
+static void MC_CmdFootstep (const mc_ctx_t *c, const sinmdl_singlecmd_t *cmd)
+{
+	(void)cmd;
+	if (cl_footsteps && !cl_footsteps->value)
+		return;
+
+	if (cl_sfx_footsteps[0])
+	{
+		S_StartSound (c->origin, c->entnum, CHAN_BODY,
+			cl_sfx_footsteps[rand() & 3], 1.0f, ATTN_NORM, 0);
+	}
+}
+
 static void MC_Exec (const mc_ctx_t *c, const sinmdl_singlecmd_t *cmd)
 {
 	const char	*name;
@@ -544,6 +691,12 @@ static void MC_Exec (const mc_ctx_t *c, const sinmdl_singlecmd_t *cmd)
 		MC_CmdParticles (c, cmd);
 	else if (!Q_stricmp (name, "shootbullets"))
 		MC_CmdShootBullets (c, cmd);
+	else if (!Q_stricmp (name, "shootbeam"))
+		MC_CmdShootBeam (c, cmd);
+	else if (!Q_stricmp (name, "explosion"))
+		MC_CmdExplosion (c, cmd);
+	else if (!Q_stricmp (name, "footstep"))
+		MC_CmdFootstep (c, cmd);
 }
 
 static void MC_RunFrame (const mc_ctx_t *c, int anim, int frame)
