@@ -301,6 +301,35 @@ void R_RenderView (refdef_t *fd);
 void GL_ScreenShot_f (void);
 void R_DrawAliasModel (entity_t *e);
 #ifdef SIN_MP
+#ifndef SPRT_MAGIC
+#define SPRT_MAGIC (('T'<<24)+('R'<<16)+('P'<<8)+'S')
+#endif
+
+typedef enum {
+	SPR_FACING_UPRIGHT = 0,
+	SPR_UPRIGHT = 1,
+	SPR_PARALLEL = 2,
+	SPR_ORIENTED = 3,
+	SPR_PARALLEL_ORIENTED = 4,
+	SPR_ORIENTED_CROSS = 5,
+	SPR_ORIENTED_STAR = 6
+} spritetype_t;
+
+#define SPR_FLAG_WORLDLIT    (1<<0)
+#define SPR_FLAG_MODULATE    (1<<1)
+#define SPR_FLAG_OVERBRIGHT  (1<<2)
+
+typedef struct {
+	int			ident;
+	int			version;
+	int			numframes;
+	int			type;
+	int			flags;
+	int			singlesided;
+	float		scale;
+	dsprframe_t	frames[1];
+} sinsprite_t;
+
 void R_DrawSinModel (entity_t *e);
 #endif
 void R_DrawBrushModel (entity_t *e);

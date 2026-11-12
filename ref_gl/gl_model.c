@@ -1222,12 +1222,15 @@ void Mod_LoadSinSprite (model_t *mod, void *buffer)
 {
 	char load_path[MAX_QPATH];
 	char line[256];
-	char *frames[MAX_MD2SKINS];
+	char frames[MAX_MD2SKINS][MAX_QPATH];
 	int numframes = 0;
 	float origin_x = 0.5f, origin_y = 0.5f;
 	float scale = 1.0f;
+	int sprite_type = SPR_PARALLEL_ORIENTED;
+	int sprite_flags = 0;
+	int singlesided = 0;
 	const char *p, *end;
-	dsprite_t *sprout;
+	sinsprite_t *sprout;
 	int i, max_w = 0, max_h = 0;
 	char *slash;
 
@@ -1318,10 +1321,38 @@ void Mod_LoadSinSprite (model_t *mod, void *buffer)
 			if (scale <= 0.0f) scale = 1.0f;
 			continue;
 		}
-		if (!Q_strcasecmp (tok, "type") || !Q_strcasecmp (tok, "singlesided") ||
-		    !Q_strcasecmp (tok, "luminance") || !Q_strcasecmp (tok, "worldlit") ||
-		    !Q_strcasecmp (tok, "modulate") || !Q_strcasecmp (tok, "overbright") ||
-		    !Q_strcasecmp (tok, "base"))
+		if (!Q_strcasecmp (tok, "type") && rest[0])
+		{
+			if (!Q_strcasecmp (rest, "parallel_upright")) sprite_type = SPR_UPRIGHT;
+			else if (!Q_strcasecmp (rest, "facing_upright")) sprite_type = SPR_FACING_UPRIGHT;
+			else if (!Q_strcasecmp (rest, "parallel")) sprite_type = SPR_PARALLEL;
+			else if (!Q_strcasecmp (rest, "oriented")) sprite_type = SPR_ORIENTED;
+			else if (!Q_strcasecmp (rest, "parallel_oriented")) sprite_type = SPR_PARALLEL_ORIENTED;
+			else if (!Q_strcasecmp (rest, "oriented_cross")) sprite_type = SPR_ORIENTED_CROSS;
+			else if (!Q_strcasecmp (rest, "oriented_star")) sprite_type = SPR_ORIENTED_STAR;
+			continue;
+		}
+		if (!Q_strcasecmp (tok, "worldlit"))
+		{
+			sprite_flags |= SPR_FLAG_WORLDLIT;
+			continue;
+		}
+		if (!Q_strcasecmp (tok, "modulate"))
+		{
+			sprite_flags |= SPR_FLAG_MODULATE;
+			continue;
+		}
+		if (!Q_strcasecmp (tok, "overbright"))
+		{
+			sprite_flags |= SPR_FLAG_OVERBRIGHT;
+			continue;
+		}
+		if (!Q_strcasecmp (tok, "singlesided"))
+		{
+			singlesided = 1;
+			continue;
+		}
+		if (!Q_strcasecmp (tok, "luminance") || !Q_strcasecmp (tok, "base"))
 		{
 			continue;
 		}
@@ -1329,8 +1360,8 @@ void Mod_LoadSinSprite (model_t *mod, void *buffer)
 		/* Must be a sprite frame filename */
 		if (numframes < MAX_MD2SKINS)
 		{
-			frames[numframes] = Hunk_Alloc (strlen(tok) + 1);
-			strcpy (frames[numframes], tok);
+			strncpy (frames[numframes], tok, sizeof(frames[numframes]) - 1);
+			frames[numframes][sizeof(frames[numframes]) - 1] = '\0';
 			numframes++;
 		}
 	}
@@ -1341,10 +1372,15 @@ void Mod_LoadSinSprite (model_t *mod, void *buffer)
 		return;
 	}
 
-	sprout = Hunk_Alloc (sizeof(dsprite_t) + (numframes - 1) * sizeof(dsprframe_t));
+	sprout = Hunk_Alloc (sizeof(sinsprite_t) + (numframes - 1) * sizeof(dsprframe_t));
 	sprout->ident = SPRT_MAGIC;
 	sprout->version = 1;
 	sprout->numframes = numframes;
+	sprout->type = sprite_type;
+	sprout->flags = sprite_flags;
+	sprout->singlesided = singlesided;
+	sprout->scale = scale;
+	mod->extradata = sprout;
 
 	for (i = 0; i < numframes; i++)
 	{
@@ -1455,6 +1491,26 @@ struct model_s *R_RegisterModel (char *name)
 			for (i=0 ; i<mod->numtexinfo ; i++)
 				mod->texinfo[i].image->registration_sequence = registration_sequence;
 		}
+#ifdef SIN_MP
+		else if (mod->type == mod_sinmdl)
+		{
+			sinmdl_t *m = (sinmdl_t *)mod->extradata;
+			if (m)
+			{
+				for (i = 0; i < m->num_skins; i++)
+				{
+					if (m->skin_names[i][0])
+						m->skins[i] = GL_FindImage (m->skin_names[i], it_skin);
+					else if (m->skins[i])
+						m->skins[i]->registration_sequence = registration_sequence;
+				}
+				if (m->num_skins > 0)
+					m->skin = m->skins[0];
+				else if (m->skin)
+					m->skin->registration_sequence = registration_sequence;
+			}
+		}
+#endif
 	}
 	return mod;
 }

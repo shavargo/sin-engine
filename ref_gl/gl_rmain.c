@@ -187,7 +187,11 @@ void R_DrawSpriteModel (entity_t *e)
 	dsprframe_t	*frame;
 	float		*up, *right;
 	dsprite_t		*psprite;
+	vec3_t		v_forward, v_right, v_up;
+	static vec3_t	world_up = {0, 0, 1};
+	qboolean	is_sin_sprite = false;
 #ifdef SIN_MP
+	sinsprite_t	*sin_spr = NULL;
 	float		sc = (e->scale > 0.0f) ? e->scale : 1.0f;
 #else
 	float		sc = 1.0f;
@@ -197,30 +201,41 @@ void R_DrawSpriteModel (entity_t *e)
 	// polygon without a surface cache
 
 	psprite = (dsprite_t *)currentmodel->extradata;
+	if (!psprite || psprite->numframes <= 0)
+		return;
 
-#if 0
-	if (e->frame < 0 || e->frame >= psprite->numframes)
+	e->frame = (e->frame >= 0 ? e->frame : -e->frame) % psprite->numframes;
+
+#ifdef SIN_MP
+	if (psprite->ident == SPRT_MAGIC)
 	{
-		ri.Con_Printf (PRINT_ALL, "no such sprite frame %i\n", e->frame);
-		e->frame = 0;
-	}
-#endif
-	e->frame %= psprite->numframes;
+		is_sin_sprite = true;
+		sin_spr = (sinsprite_t *)psprite;
+		frame = &sin_spr->frames[e->frame];
+		if (sin_spr->scale > 0.0f)
+			sc *= sin_spr->scale;
 
-	frame = &psprite->frames[e->frame];
-
-#if 0
-	if (psprite->type == SPR_ORIENTED)
-	{	// bullet marks on walls
-	vec3_t		v_forward, v_right, v_up;
-
-	AngleVectors (currententity->angles, v_forward, v_right, v_up);
-		up = v_up;
-		right = v_right;
+		if (sin_spr->type == SPR_ORIENTED || sin_spr->type == SPR_ORIENTED_CROSS || sin_spr->type == SPR_ORIENTED_STAR)
+		{
+			AngleVectors (e->angles, v_forward, v_right, v_up);
+			up = v_up;
+			right = v_right;
+		}
+		else if (sin_spr->type == SPR_FACING_UPRIGHT || sin_spr->type == SPR_UPRIGHT)
+		{
+			up = world_up;
+			right = vright;
+		}
+		else
+		{
+			up = vup;
+			right = vright;
+		}
 	}
 	else
 #endif
-	{	// normal sprite
+	{
+		frame = &psprite->frames[e->frame];
 		up = vup;
 		right = vright;
 	}
@@ -228,22 +243,58 @@ void R_DrawSpriteModel (entity_t *e)
 	if ( e->flags & RF_TRANSLUCENT )
 		alpha = e->alpha;
 
-	if ( alpha != 1.0F )
-		qglEnable( GL_BLEND );
+	if (!currentmodel->skins[e->frame])
+		return;
 
-	qglColor4f( 1, 1, 1, alpha );
+#ifdef SIN_MP
+	if (is_sin_sprite)
+	{
+		qglDepthMask (GL_FALSE);
+		if (!sin_spr->singlesided)
+			qglDisable (GL_CULL_FACE);
 
-    GL_Bind(currentmodel->skins[e->frame]->texnum);
+		qglEnable (GL_BLEND);
+		if (sin_spr->flags & (SPR_FLAG_MODULATE | SPR_FLAG_OVERBRIGHT))
+			qglBlendFunc (GL_ONE, GL_ONE);
+		else
+			qglBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	GL_TexEnv( GL_MODULATE );
-
-	if ( alpha == 1.0 )
-		qglEnable (GL_ALPHA_TEST);
+		if (sin_spr->flags & SPR_FLAG_WORLDLIT)
+		{
+			vec3_t shadelight;
+			R_LightPoint (e->origin, shadelight);
+			qglColor4f (shadelight[0], shadelight[1], shadelight[2], alpha);
+		}
+		else
+		{
+			qglColor4f (1, 1, 1, alpha);
+		}
+	}
 	else
-		qglDisable( GL_ALPHA_TEST );
+#endif
+	{
+		if ( alpha != 1.0F )
+			qglEnable( GL_BLEND );
+		qglColor4f( 1, 1, 1, alpha );
+		if ( alpha == 1.0 )
+			qglEnable (GL_ALPHA_TEST);
+		else
+			qglDisable( GL_ALPHA_TEST );
+	}
+
+	GL_Bind(currentmodel->skins[e->frame]->texnum);
+	GL_TexEnv( GL_MODULATE );
 
 	if (e->flags & RF_DEPTHHACK)
 		qglDepthRange (gldepthmin, gldepthmin + 0.3 * (gldepthmax - gldepthmin));
+
+#ifdef SIN_MP
+	if (is_sin_sprite && sin_spr && sin_spr->type == SPR_ORIENTED)
+	{
+		qglEnable (GL_POLYGON_OFFSET_FILL);
+		qglPolygonOffset (-1.0f, -2.0f);
+	}
+#endif
 
 	qglBegin (GL_QUADS);
 
@@ -269,15 +320,32 @@ void R_DrawSpriteModel (entity_t *e)
 	
 	qglEnd ();
 
+#ifdef SIN_MP
+	if (is_sin_sprite && sin_spr && sin_spr->type == SPR_ORIENTED)
+	{
+		qglDisable (GL_POLYGON_OFFSET_FILL);
+	}
+#endif
+
 	if (e->flags & RF_DEPTHHACK)
 		qglDepthRange (gldepthmin, gldepthmax);
 
-	qglDisable (GL_ALPHA_TEST);
+#ifdef SIN_MP
+	if (is_sin_sprite)
+	{
+		qglDepthMask (GL_TRUE);
+		qglDisable (GL_BLEND);
+		qglEnable (GL_CULL_FACE);
+	}
+	else
+#endif
+	{
+		qglDisable (GL_ALPHA_TEST);
+		if ( alpha != 1.0F )
+			qglDisable( GL_BLEND );
+	}
+
 	GL_TexEnv( GL_REPLACE );
-
-	if ( alpha != 1.0F )
-		qglDisable( GL_BLEND );
-
 	qglColor4f( 1, 1, 1, 1 );
 }
 
@@ -337,7 +405,7 @@ void R_DrawEntitiesOnList (void)
 	for (i=0 ; i<r_newrefdef.num_entities ; i++)
 	{
 		currententity = &r_newrefdef.entities[i];
-		if (currententity->flags & RF_TRANSLUCENT)
+		if (currententity->flags & (RF_TRANSLUCENT | RF_DONTDRAW))
 			continue;	// solid
 
 		if ( currententity->flags & RF_BEAM )
@@ -349,7 +417,6 @@ void R_DrawEntitiesOnList (void)
 			currentmodel = currententity->model;
 			if (!currentmodel)
 			{
-				R_DrawNullModel ();
 				continue;
 			}
 			switch (currentmodel->type)
@@ -381,6 +448,8 @@ void R_DrawEntitiesOnList (void)
 	for (i=0 ; i<r_newrefdef.num_entities ; i++)
 	{
 		currententity = &r_newrefdef.entities[i];
+		if (currententity->flags & RF_DONTDRAW)
+			continue;
 		if (!(currententity->flags & RF_TRANSLUCENT))
 			continue;	// solid
 
@@ -394,7 +463,6 @@ void R_DrawEntitiesOnList (void)
 
 			if (!currentmodel)
 			{
-				R_DrawNullModel ();
 				continue;
 			}
 			switch (currentmodel->type)
@@ -1594,72 +1662,172 @@ void R_SetPalette ( const unsigned char *palette)
 }
 
 /*
+** R_DrawSimpleBeamQuad
+**
+** Draws a camera-facing billboard ribbon quad between start and end (from q2repro).
+*/
+static void R_DrawSimpleBeamQuad( const vec3_t start, const vec3_t end, float width )
+{
+	vec3_t d1, d2, d3;
+
+	VectorSubtract( end, start, d1 );
+	VectorSubtract( r_origin, start, d2 );
+	CrossProduct( d1, d2, d3 );
+	if ( VectorNormalize( d3 ) < 0.1f )
+	{
+		PerpendicularVector( d3, d1 );
+		VectorNormalize( d3 );
+	}
+	VectorScale( d3, width, d3 );
+
+	qglBegin( GL_QUADS );
+	qglTexCoord2f( 0.0f, 0.0f );
+	qglVertex3f( start[0] + d3[0], start[1] + d3[1], start[2] + d3[2] );
+
+	qglTexCoord2f( 1.0f, 0.0f );
+	qglVertex3f( start[0] - d3[0], start[1] - d3[1], start[2] - d3[2] );
+
+	qglTexCoord2f( 1.0f, 1.0f );
+	qglVertex3f( end[0] - d3[0], end[1] - d3[1], end[2] - d3[2] );
+
+	qglTexCoord2f( 0.0f, 1.0f );
+	qglVertex3f( end[0] + d3[0], end[1] + d3[1], end[2] + d3[2] );
+	qglEnd();
+}
+
+#define MIN_LIGHTNING_SEGMENTS      3
+#define MAX_LIGHTNING_SEGMENTS      8
+#define MIN_SEGMENT_LENGTH          16.0f
+
+/*
+** R_DrawLightningBeam
+**
+** Procedural jagged electric beam between start and end (from q2repro).
+*/
+static void R_DrawLightningBeam( const vec3_t start, const vec3_t end, float width )
+{
+	vec3_t dir, segments[MAX_LIGHTNING_SEGMENTS + 1];
+	vec3_t right, up;
+	float length, segment_length;
+	int i, num_segments, max_segments;
+
+	VectorSubtract( end, start, dir );
+	length = VectorNormalize( dir );
+	if ( length < 1.0f )
+		return;
+
+	max_segments = (int)( length / MIN_SEGMENT_LENGTH );
+	if ( max_segments < 1 )
+		max_segments = 1;
+	if ( max_segments > MAX_LIGHTNING_SEGMENTS )
+		max_segments = MAX_LIGHTNING_SEGMENTS;
+
+	if ( max_segments <= MIN_LIGHTNING_SEGMENTS )
+		num_segments = max_segments;
+	else
+		num_segments = MIN_LIGHTNING_SEGMENTS + ( rand() % ( max_segments - MIN_LIGHTNING_SEGMENTS + 1 ) );
+
+	PerpendicularVector( right, dir );
+	CrossProduct( dir, right, up );
+
+	segment_length = length / (float)num_segments;
+	VectorCopy( start, segments[0] );
+
+	for ( i = 1; i < num_segments; i++ )
+	{
+		vec3_t point;
+		float offs_r, offs_u;
+
+		VectorMA( start, i * segment_length, dir, point );
+
+		offs_r = ( ( ( rand() & 0x7fff ) / 32767.0f ) * 2.0f - 1.0f ) * ( segment_length * 0.35f );
+		offs_u = ( ( ( rand() & 0x7fff ) / 32767.0f ) * 2.0f - 1.0f ) * ( segment_length * 0.35f );
+
+		VectorMA( point, offs_r, right, point );
+		VectorMA( point, offs_u, up, segments[i] );
+	}
+
+	VectorCopy( end, segments[num_segments] );
+
+	for ( i = 0; i < num_segments; i++ )
+	{
+		R_DrawSimpleBeamQuad( segments[i], segments[i + 1], width );
+	}
+}
+
+/*
 ** R_DrawBeam
 */
 void R_DrawBeam( entity_t *e )
 {
-#define NUM_BEAM_SEGS 6
+	float r, g, b, alpha;
+	float width;
+	qboolean textured = false;
 
-	int	i;
-	float r, g, b;
-
-	vec3_t perpvec;
-	vec3_t direction, normalized_direction;
-	vec3_t	start_points[NUM_BEAM_SEGS], end_points[NUM_BEAM_SEGS];
-	vec3_t oldorigin, origin;
-
-	oldorigin[0] = e->oldorigin[0];
-	oldorigin[1] = e->oldorigin[1];
-	oldorigin[2] = e->oldorigin[2];
-
-	origin[0] = e->origin[0];
-	origin[1] = e->origin[1];
-	origin[2] = e->origin[2];
-
-	normalized_direction[0] = direction[0] = oldorigin[0] - origin[0];
-	normalized_direction[1] = direction[1] = oldorigin[1] - origin[1];
-	normalized_direction[2] = direction[2] = oldorigin[2] - origin[2];
-
-	if ( VectorNormalize( normalized_direction ) == 0 )
+	if ( VectorCompare( e->origin, e->oldorigin ) )
 		return;
 
-	PerpendicularVector( perpvec, normalized_direction );
-	VectorScale( perpvec, e->frame / 2, perpvec );
+	width = e->frame > 0 ? (float)e->frame * 0.75f : 1.5f;
 
-	for ( i = 0; i < 6; i++ )
+	if ( e->skinnum == -1 )
 	{
-		RotatePointAroundVector( start_points[i], normalized_direction, perpvec, (360.0/NUM_BEAM_SEGS)*i );
-		VectorAdd( start_points[i], origin, start_points[i] );
-		VectorAdd( start_points[i], direction, end_points[i] );
+		r = g = b = 1.0f;
+	}
+	else
+	{
+		unsigned c = d_8to24table[e->skinnum & 0xFF];
+		r = ( c & 0xFF ) / 255.0f;
+		g = ( ( c >> 8 ) & 0xFF ) / 255.0f;
+		b = ( ( c >> 16 ) & 0xFF ) / 255.0f;
+	}
+	alpha = e->alpha > 0.0f ? e->alpha : 0.75f;
+
+	if ( e->skin )
+	{
+		GL_Bind( e->skin->texnum );
+		textured = true;
+	}
+	else if ( e->model && e->model->skins[0] )
+	{
+		int f = ( e->frame >= 0 && e->frame < MAX_MD2SKINS && e->model->skins[e->frame] ) ? e->frame : 0;
+		if ( e->model->skins[f] )
+		{
+			GL_Bind( e->model->skins[f]->texnum );
+			textured = true;
+		}
+	}
+	else if ( r_particletexture )
+	{
+		GL_Bind( r_particletexture->texnum );
+		textured = true;
 	}
 
-	qglDisable( GL_TEXTURE_2D );
+	if ( textured )
+		qglEnable( GL_TEXTURE_2D );
+	else
+		qglDisable( GL_TEXTURE_2D );
+
 	qglEnable( GL_BLEND );
 	qglDepthMask( GL_FALSE );
+	qglBlendFunc( GL_SRC_ALPHA, GL_ONE );
 
-	r = ( d_8to24table[e->skinnum & 0xFF] ) & 0xFF;
-	g = ( d_8to24table[e->skinnum & 0xFF] >> 8 ) & 0xFF;
-	b = ( d_8to24table[e->skinnum & 0xFF] >> 16 ) & 0xFF;
+	qglColor4f( r, g, b, alpha );
+	if ( e->flags & RF_GLOW )
+		R_DrawLightningBeam( e->origin, e->oldorigin, width );
+	else
+		R_DrawSimpleBeamQuad( e->origin, e->oldorigin, width );
 
-	r *= 1/255.0F;
-	g *= 1/255.0F;
-	b *= 1/255.0F;
-
-	qglColor4f( r, g, b, e->alpha );
-
-	qglBegin( GL_TRIANGLE_STRIP );
-	for ( i = 0; i < NUM_BEAM_SEGS; i++ )
+	if ( !( e->flags & RF_GLOW ) && width > 1.0f )
 	{
-		qglVertex3fv( start_points[i] );
-		qglVertex3fv( end_points[i] );
-		qglVertex3fv( start_points[(i+1)%NUM_BEAM_SEGS] );
-		qglVertex3fv( end_points[(i+1)%NUM_BEAM_SEGS] );
+		qglColor4f( ( r + 1.0f ) * 0.5f, ( g + 1.0f ) * 0.5f, ( b + 1.0f ) * 0.5f, alpha );
+		R_DrawSimpleBeamQuad( e->origin, e->oldorigin, width * 0.35f );
 	}
-	qglEnd();
 
 	qglEnable( GL_TEXTURE_2D );
+	qglBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 	qglDisable( GL_BLEND );
 	qglDepthMask( GL_TRUE );
+	qglColor4f( 1, 1, 1, 1 );
 }
 
 //===================================================================

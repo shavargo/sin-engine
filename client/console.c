@@ -87,7 +87,7 @@ void Con_ToggleConsole_f( void )
 		// Closing console - return to last known screen
 		if (cls.state == ca_active)
 		{
-			if (con_last_console)
+			if (con_last_console && con_last_console != cls.mainconsole && con_last_key_dest == key_console3d)
 			{
 				cls.currentconsole = con_last_console;
 				cls.key_dest = con_last_key_dest;
@@ -96,6 +96,8 @@ void Con_ToggleConsole_f( void )
 			{
 				cls.currentconsole = NULL;
 				cls.key_dest = key_game;
+				con_last_console = NULL;
+				con_last_key_dest = key_game;
 				Cvar_Set ( "paused", "0" );
 			}
 		}

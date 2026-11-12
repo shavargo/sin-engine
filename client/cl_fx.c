@@ -1505,6 +1505,7 @@ void CL_DiminishingTrail (vec3_t start, vec3_t end, centity_t *old, int flags)
 				}
 				p->vel[2] -= PARTICLE_GRAVITY;
 			}
+#ifndef SIN_MP
 			else if (flags & EF_GREENGIB)
 			{
 				p->alpha = 1.0;
@@ -1518,6 +1519,7 @@ void CL_DiminishingTrail (vec3_t start, vec3_t end, centity_t *old, int flags)
 				}
 				p->vel[2] -= PARTICLE_GRAVITY;
 			}
+#endif
 			else
 			{
 				p->alpha = 1.0;

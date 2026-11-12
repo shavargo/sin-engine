@@ -427,6 +427,50 @@ COLLISION DETECTION
 #define	SURF_FLOWING	0x40	// scroll towards angle
 #define	SURF_NODRAW		0x80	// don't bother referencing the texture
 
+#ifdef SIN_MP
+#define	SURF_WAVY            0x400       // surface has waves
+#define	SURF_RICOCHET        0x800       // projectiles bounce off this surface
+#define	SURF_PRELIT          0x1000      // surface has intensity information for pre-lighting
+#define	SURF_CONSOLE         0x4000      // surface has a console on it
+#define	SURF_HARDWAREONLY    0x10000     // surface should only do things in hardware
+#define	SURF_DAMAGE          0x20000     // surface can be damaged
+#define	SURF_WEAK            0x40000     // surface has weak hit points
+#define	SURF_NORMAL          0x80000     // surface has normal hit points
+#define	SURF_ADD             0x100000    // surface will be additive
+#define	SURF_ENVMAPPED       0x200000    // surface is envmapped
+#define	SURF_RANDOMANIMATE   0x400000    // surface start animating on a random frame
+#define	SURF_ANIMATE         0x800000    // surface animates
+#define	SURF_RNDTIME         0x1000000   // time between animations is random
+#define	SURF_TRANSLATE       0x2000000   // surface translates
+#define	SURF_NOMERGE         0x4000000   // surface is not merged in csg phase
+#define	SURF_TYPE_BIT0       0x8000000   // 0 bit of surface type
+#define	SURF_TYPE_BIT1       0x10000000  // 1 bit of surface type
+#define	SURF_TYPE_BIT2       0x20000000  // 2 bit of surface type
+#define	SURF_TYPE_BIT3       0x40000000  // 3 bit of surface type
+
+#define	MASK_SURF_TYPE       (SURF_TYPE_BIT0|SURF_TYPE_BIT1|SURF_TYPE_BIT2|SURF_TYPE_BIT3)
+#define	SURF_START_BIT       27
+#define	SURFACETYPE_FROM_FLAGS(x) (((x) >> SURF_START_BIT) & 0xf)
+
+#define	SURF_TYPE_SHIFT(x)   ((x) << SURF_START_BIT)
+#define	SURF_TYPE_NONE       SURF_TYPE_SHIFT(0)
+#define	SURF_TYPE_WOOD       SURF_TYPE_SHIFT(1)
+#define	SURF_TYPE_METAL      SURF_TYPE_SHIFT(2)
+#define	SURF_TYPE_STONE      SURF_TYPE_SHIFT(3)
+#define	SURF_TYPE_CONCRETE   SURF_TYPE_SHIFT(4)
+#define	SURF_TYPE_DIRT       SURF_TYPE_SHIFT(5)
+#define	SURF_TYPE_FLESH      SURF_TYPE_SHIFT(6)
+#define	SURF_TYPE_GRILL      SURF_TYPE_SHIFT(7)
+#define	SURF_TYPE_GLASS      SURF_TYPE_SHIFT(8)
+#define	SURF_TYPE_FABRIC     SURF_TYPE_SHIFT(9)
+#define	SURF_TYPE_MONITOR    SURF_TYPE_SHIFT(10)
+#define	SURF_TYPE_GRAVEL     SURF_TYPE_SHIFT(11)
+#define	SURF_TYPE_VEGETATION SURF_TYPE_SHIFT(12)
+#define	SURF_TYPE_PAPER      SURF_TYPE_SHIFT(13)
+#define	SURF_TYPE_DUCT       SURF_TYPE_SHIFT(14)
+#define	SURF_TYPE_WATER      SURF_TYPE_SHIFT(15)
+#endif
+
 
 
 // content masks
@@ -486,12 +530,47 @@ typedef struct cmodel_s
 	int			headnode;
 } cmodel_t;
 
+#ifdef SIN_MP
+typedef struct csurface_s
+{
+	union {
+		char	groupname[64];
+		char	name[64];
+	};
+	int			groupnumber;
+	int			flags;
+	int			style;
+	qboolean	trans_state;
+	float		trans_mag;
+	float		trans_angle;
+	float		translucence;
+	float		frequency;
+	float		magnitude;
+	float		upload_width;
+	float		upload_height;
+	vec3_t		transvec;
+	float		nonlit;
+	int			animation_frame;
+	int			numframes;
+	float		animtime;
+	int			frameoffset;
+	float		nextanimtime;
+	float		delta_s;
+	float		delta_t;
+	float		last_update_time;
+	vec3_t		color;
+	int			leaf;
+	struct csurface_s	*next;
+	int			value;
+} csurface_t;
+#else
 typedef struct csurface_s
 {
 	char		name[16];
 	int			flags;
 	int			value;
 } csurface_t;
+#endif
 
 typedef struct mapsurface_s  // used internally due to name len probs //ZOID
 {
@@ -537,17 +616,19 @@ typedef struct
 #ifdef SIN_MP
 typedef enum
 {
-	PM_NORMAL,				/* 0 */
-	PM_NORMAL_NO_GRAVITY,	/* 1: normal alive player in SiN MP (GetPMType @ 0x100994a0) */
-	PM_DEAD_CROUCH,			/* 2 */
-	PM_SPECTATOR,			/* 3: noclip / spectator fly (Pmove @ 0x4852c0) */
-	PM_DEAD_VIEW,			/* 4 */
-	PM_CUSTOM,				/* 5 */
-	PM_DEAD,				/* 6: dead (Pmove @ 0x4852d0 / 0x48530a) */
-	PM_GIB,					/* 7: gibbed (PM_CheckDuck @ 0x484700) */
-	PM_FREEZE,				/* 8: frozen (Pmove @ 0x4852fa) */
-	PM_FALL,				/* 9 */
-	PM_SLIDE				/* 10 */
+	PM_NORMAL,
+	PM_ZOOM,
+	PM_INVEHICLE_ZOOM,
+	PM_SPECTATOR,
+	PM_INVEHICLE,
+	PM_LOCKVIEW,
+	PM_DEAD,
+	PM_GIB,
+	PM_FREEZE,
+	PM_MOVECAPTURED,
+	PM_ONBIKE,
+	PM_ATTACHVIEW,
+	PM_GRAPPLE_PULL
 } pmtype_t;
 #else
 typedef enum 
@@ -589,19 +670,11 @@ typedef struct
 	short		origin[3];		// 12.3
 	short		velocity[3];	// 12.3
 #ifdef SIN_MP
-	/*
-	 * Steam sin.exe CL_ParsePlayerstate (0x404810) & gamex86 SetupPmove
-	 * (0x10099380): sizeof(pmove_state_t) == 0x24 (36 bytes),
-	 * sizeof(player_state_t) == 0xC4 (196 bytes).
-	 */
-	unsigned short	pm_flags;		/* +0x10 */
-	byte		pm_time;			/* +0x12 */
-	byte		_pad0;				/* +0x13 */
-	short		gravity;			/* +0x14 (low 13 bits signed) */
-	short		_pad1;				/* +0x16 */
-	int			gravity_dir;		/* +0x18 (axis 0..7) */
-	short		delta_angles[3];	/* +0x1C */
-	short		_pad2;				/* +0x22 -> sizeof 0x24 */
+	short		pm_flags;
+	byte		pm_time;
+	short		gravity : 13;
+	unsigned	gravity_axis : 3;
+	short		delta_angles[3];
 #else
 	byte		pm_flags;		// ducked, jump_held, etc
 	byte		pm_time;		// each unit = 8 ms
@@ -630,8 +703,10 @@ typedef struct usercmd_s
 	byte	impulse;		// remove?
 	byte	lightlevel;		// light level the player is standing on
 #ifdef SIN_MP
-	/* Steam: sizeof 0x12 (REA FUN_0047f240 / FUN_0047b560). Q2 was 16. */
-	byte	extra;			/* wire: packed>>4 */
+	union {
+		byte	debris;
+		byte	extra;
+	};
 	byte	_pad;
 #endif
 } usercmd_t;
@@ -683,6 +758,34 @@ typedef struct
 // that happen constantly on the given entity.
 // An entity that has effects will be sent to the client
 // even if it has a zero index model.
+#ifdef SIN_MP
+#define  EF_ROTATE         (1<<0)         // rotate (bonus items)
+#define  EF_ROCKET         (1<<1)         // redlight + trail
+#define  EF_GIB            (1<<2)         // leave a trail
+#define  EF_PULSE          (1<<3)         // pulsecannon projectile effect
+#define  EF_SMOOTHANGLES   (1<<4)         // 16-bit angles over net
+#define  EF_EVERYFRAME     (1<<5)         // def commands will be run every client frame
+#define  EF_CROUCH         (1<<6)         // character is crouching
+#define  EF_EFFECTS_16     (1<<7)         // reserved for net transmission
+#define  EF_GRAVITY_AXIS_0 (1<<8)         // bit 0 of gravity axis
+#define  EF_GRAVITY_AXIS_1 (1<<9)         // bit 1 of gravity axis
+#define  EF_GRAVITY_AXIS_2 (1<<10)        // bit 2 of gravity axis
+#define  EF_BEAMEFFECT     (1<<11)        // Beams effect
+#define  EF_AUTO_ANIMATE   (1<<12)        // auto animate this model (single player)
+#define  EF_NOFOOTSTEPS    (1<<13)        // doesn't make footstep sounds
+#define  EF_WARM           (1<<14)        // for heatseeking stuff
+#define  EF_EFFECTS_32     (1<<15)        // reserved for net transmission
+#define  EF_HOVER          (1<<16)
+#define  EF_HOVERTHRUST    (1<<17)
+#define  EF_HOVERTURBO     (1<<18)
+#define  EF_VIEWMODEL      (1<<19)
+#define  EF_ANIMEROCKET    (1<<20)
+#define  EF_FLAMES         (1<<21)
+#define  EF_DEATHFLAMES    (1<<22)
+#define  EF_PLASMATRAIL1   (1<<23)
+#define  EF_PLASMATRAIL2   (1<<24)
+#define  EF_NUKETRAIL      (1<<25)
+#else
 #define	EF_ROTATE			0x00000001		// rotate (bonus items)
 #define	EF_GIB				0x00000002		// leave a trail
 #define	EF_BLASTER			0x00000008		// redlight + trail
@@ -718,6 +821,7 @@ typedef struct
 #define EF_HALF_DAMAGE		0x40000000
 #define EF_TRACKERTRAIL		0x80000000
 //ROGUE
+#endif
 
 // entity_state_t->renderfx flags
 #define	RF_MINLIGHT			1		// allways have some light (viewmodel)
@@ -731,6 +835,7 @@ typedef struct
 #define	RF_CUSTOMSKIN		256		// skin is an index in image_precache
 #define	RF_GLOW				512		// pulse lighting for bonus items
 #define RF_DONTDRAW			(1<<10)
+#define RF_DLIGHT			(1<<12)
 #define RF_SHELL_RED		1024
 #define	RF_SHELL_GREEN		2048
 #define RF_SHELL_BLUE		4096
@@ -1061,7 +1166,9 @@ typedef enum
 	TE_HOVERBOOSTER,			// 22: hoverbike booster
 	TE_SIZED_PARTICLES,			// 23: sized particles
 	TE_RANDOM_SIZED_PARTICLES,	// 24: random sized particles
-	TE_PARTICLES_FULL			// 25: full controllable particles
+	TE_PARTICLES_FULL,			// 25: full controllable particles
+	TE_RANDOM_PARTICLES_FULL,	// 26: full controllable particles with random distribution
+	TE_TRACER					// 27: bullet tracer
 } temp_event_t;
 
 #define TM_ORIGIN	0x01
@@ -1476,6 +1583,7 @@ ROGUE - VERSIONS
 #define	CS_CHECKPOINTS		(CS_SOUNDTRACK+1)
 #define	CS_BIKESKINS		(CS_CHECKPOINTS+1)
 #define	MAX_CONFIGSTRINGS	(CS_BIKESKINS+MAX_CLIENTS)
+#define	MAX_NORMCONFIGSTRINGS	(CS_SOUNDTRACK+1)
 #define CS_AIRACCEL			29
 #define CS_GENERAL			CS_SOUNDTRACK
 #else

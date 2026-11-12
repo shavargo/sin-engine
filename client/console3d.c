@@ -3729,25 +3729,26 @@ CONSOLE_SetKeyFunction
 void CONSOLE_SetKeyFunction( console3d_t *p )
 {
 	int i;
-	assert( p->menu3d );
-	if (p->menu3d) {
-		p->menu3d[p->current_menu_level]->keyfunc = NULL;
-		i = 0;
-		while (key_functions[i].string) {
-			assert( p->menu3d[p->current_menu_level]->menu_name );
-			// Hack to get all credit menus to work
-			if ( strstr( p->menu3d[p->current_menu_level]->menu_name, "credit" ) ) {
-				if ( strstr( p->menu3d[p->current_menu_level]->menu_name, key_functions[i].string ) ) {
-					p->menu3d[p->current_menu_level]->keyfunc = key_functions[i].callback;
-				}
-			} else {
-				if (!strcmp( p->menu3d[p->current_menu_level]->menu_name,key_functions[i].string )) {
-					p->menu3d[p->current_menu_level]->keyfunc = key_functions[i].callback;
-					break;
-				}
+	if (!p || !p->menu3d || p->current_menu_level < 0 || !p->menu3d[p->current_menu_level])
+		return;
+
+	p->menu3d[p->current_menu_level]->keyfunc = NULL;
+	i = 0;
+	while (key_functions[i].string) {
+		if (!p->menu3d[p->current_menu_level]->menu_name)
+			break;
+		// Hack to get all credit menus to work
+		if ( strstr( p->menu3d[p->current_menu_level]->menu_name, "credit" ) ) {
+			if ( strstr( p->menu3d[p->current_menu_level]->menu_name, key_functions[i].string ) ) {
+				p->menu3d[p->current_menu_level]->keyfunc = key_functions[i].callback;
 			}
-			i++;
+		} else {
+			if (!strcmp( p->menu3d[p->current_menu_level]->menu_name,key_functions[i].string )) {
+				p->menu3d[p->current_menu_level]->keyfunc = key_functions[i].callback;
+				break;
+			}
 		}
+		i++;
 	}
 }
 

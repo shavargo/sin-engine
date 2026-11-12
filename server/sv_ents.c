@@ -258,7 +258,7 @@ void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, size
 		|| ps->pmove.delta_angles[2] != ops->pmove.delta_angles[2])
 		pflags |= SIN_PS_M_DELTA_ANGLES;
 	if (ps->pmove.gravity != ops->pmove.gravity
-		|| ps->pmove.gravity_dir != ops->pmove.gravity_dir)
+		|| ps->pmove.gravity_axis != ops->pmove.gravity_axis)
 		pflags |= SIN_PS_M_GRAVITY;
 	if (ps->pmove.pm_time != ops->pmove.pm_time)
 		pflags |= SIN_PS_M_TIME;
@@ -338,7 +338,7 @@ void SV_WritePlayerstateToClient (client_frame_t *from, client_frame_t *to, size
 	}
 	if (pflags & SIN_PS_M_GRAVITY)
 		MSG_WriteShort (msg, (ps->pmove.gravity & 0x1fff)
-			| ((ps->pmove.gravity_dir & 7) << 13));
+			| ((ps->pmove.gravity_axis & 7) << 13));
 	if (pflags & SIN_PS_M_DELTA_ANGLES)
 	{
 		MSG_WriteShort (msg, ps->pmove.delta_angles[0]);

@@ -21,6 +21,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "qcommon.h"
 #include "glob.h"
 
+#if !defined(_WIN32)
+#include <dirent.h>
+#endif
+
 // define this to dissalow any data but the demo pak file
 //#define	NO_ADDONS
 
@@ -205,6 +209,74 @@ int	Developer_searchpath (int who)
 
 }
 
+#if !defined(_WIN32)
+/*
+ * Case-insensitive file opening on POSIX filesystems (e.g. Linux ext4).
+ * Searches path components case-insensitively so assets like Menuop_Game_0.TGA
+ * can be resolved when requested as pics/menuop_game_0.tga.
+ */
+static FILE *FS_CaseFOpen (const char *base, const char *relpath, char *outpath, size_t outsize)
+{
+	char cur[MAX_OSPATH];
+	char comp[MAX_OSPATH];
+	const char *p = relpath;
+
+	strncpy (cur, base, sizeof(cur) - 1);
+	cur[sizeof(cur) - 1] = '\0';
+
+	while (*p)
+	{
+		DIR *dir;
+		struct dirent *de;
+		qboolean found = false;
+		size_t len = 0;
+
+		while (*p == '/' || *p == '\\')
+			p++;
+		if (!*p)
+			break;
+
+		while (*p && *p != '/' && *p != '\\')
+		{
+			if (len < sizeof(comp) - 1)
+				comp[len++] = *p;
+			p++;
+		}
+		comp[len] = '\0';
+
+		dir = opendir (cur);
+		if (!dir)
+			return NULL;
+
+		while ((de = readdir (dir)) != NULL)
+		{
+			if (!Q_stricmp (de->d_name, comp))
+			{
+				size_t curlen = strlen(cur);
+				if (curlen + 1 + strlen(de->d_name) < sizeof(cur))
+				{
+					cur[curlen] = '/';
+					strcpy (cur + curlen + 1, de->d_name);
+					found = true;
+				}
+				break;
+			}
+		}
+		closedir (dir);
+
+		if (!found)
+			return NULL;
+	}
+
+	if (outpath && outsize > 0)
+	{
+		strncpy (outpath, cur, outsize - 1);
+		outpath[outsize - 1] = '\0';
+	}
+
+	return fopen (cur, "rb");
+}
+#endif
 
 /*
 ===========
@@ -245,6 +317,12 @@ int FS_FOpenFile (char *filename, FILE **file)
 			*file = fopen (netpath, "rb");
 			if (*file)
 			{		
+				if (FS_IsDirectory (netpath))
+				{
+					fclose (*file);
+					*file = NULL;
+					return -1;
+				}
 				Com_DPrintf ("link file: %s\n",netpath);
 				return FS_filelength (*file);
 			}
@@ -282,8 +360,19 @@ int FS_FOpenFile (char *filename, FILE **file)
 			Com_sprintf (netpath, sizeof(netpath), "%s/%s",search->filename, filename);
 			
 			*file = fopen (netpath, "rb");
+#if !defined(_WIN32)
+			if (!*file)
+				*file = FS_CaseFOpen (search->filename, filename, netpath, sizeof(netpath));
+#endif
 			if (!*file)
 				continue;
+
+			if (FS_IsDirectory (netpath))
+			{
+				fclose (*file);
+				*file = NULL;
+				continue;
+			}
 			
 			Com_DPrintf ("FindFile: %s\n",netpath);
 
@@ -366,6 +455,8 @@ Properly handles partial reads
 */
 void CDAudio_Stop(void);
 #define	MAX_READ	0x10000		// read in blocks of 64k
+#include <errno.h>
+
 void FS_Read (void *buffer, int len, FILE *f)
 {
 	int		block, remaining;
@@ -393,11 +484,12 @@ void FS_Read (void *buffer, int len, FILE *f)
 				CDAudio_Stop();
 			}
 			else
-				Com_Error (ERR_FATAL, "FS_Read: 0 bytes read");
+				Com_Error (ERR_FATAL, "FS_Read: 0 bytes read (len=%d, rem=%d, ftell=%ld, feof=%d, ferror=%d, errno=%d: %s)",
+					len, remaining, ftell(f), feof(f), ferror(f), errno, strerror(errno));
 		}
 
 		if (read == -1)
-			Com_Error (ERR_FATAL, "FS_Read: -1 bytes read");
+			Com_Error (ERR_FATAL, "FS_Read: -1 bytes read (len=%d, errno=%d: %s)", len, errno, strerror(errno));
 
 		// do some progress bar thing here...
 
@@ -416,7 +508,7 @@ a null buffer will just return the file length without loading
 */
 int FS_LoadFile (char *path, void **buffer)
 {
-	FILE	*h;
+	FILE	*h = NULL;
 	byte	*buf;
 	int		len;
 
@@ -424,8 +516,10 @@ int FS_LoadFile (char *path, void **buffer)
 
 // look for it in the filesystem or pack files
 	len = FS_FOpenFile (path, &h);
-	if (!h)
+	if (!h || len < 0)
 	{
+		if (h)
+			fclose (h);
 		if (buffer)
 			*buffer = NULL;
 		return -1;
@@ -705,10 +799,35 @@ void FS_SetGamedir (char *dir)
 	{
 		Cvar_FullSet ("gamedir", "", CVAR_SERVERINFO|CVAR_NOSET);
 		Cvar_FullSet ("game", "", CVAR_LATCH|CVAR_SERVERINFO);
+#ifdef SIN_MP
+		Cvar_FullSet ("2015", "0", CVAR_NOSET);
+#endif
 	}
 	else
 	{
 		Cvar_FullSet ("gamedir", dir, CVAR_SERVERINFO|CVAR_NOSET);
+
+#ifdef SIN_MP
+		/* SiN: Wages of SiN (2015) auto-mount specification:
+		   If the gamedir contains "2015" (e.g. "2015", "ctf_2015", "wos_2015"),
+		   set the 2015 cvar and mount the base 2015 directory so all expansion
+		   assets and scripts are searched under the mod directory. */
+		if (strstr(dir, "2015") || strstr(dir, "WOS") || strstr(dir, "wos"))
+		{
+			Cvar_FullSet ("2015", "1", CVAR_NOSET);
+			if (Q_stricmp(dir, "2015") != 0)
+			{
+				if (fs_cddir->string[0])
+					FS_AddGameDirectory (va("%s/2015", fs_cddir->string) );
+				FS_AddGameDirectory (va("%s/2015", fs_basedir->string) );
+			}
+		}
+		else
+		{
+			Cvar_FullSet ("2015", "0", CVAR_NOSET);
+		}
+#endif
+
 		if (fs_cddir->string[0])
 			FS_AddGameDirectory (va("%s/%s", fs_cddir->string, dir) );
 		FS_AddGameDirectory (va("%s/%s", fs_basedir->string, dir) );

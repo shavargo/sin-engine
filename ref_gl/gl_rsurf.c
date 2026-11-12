@@ -27,6 +27,33 @@ static vec3_t	modelorg;		// relative to viewpoint
 
 msurface_t	*r_alpha_surfaces;
 
+/*
+================
+R_IsAlphaSurface
+================
+*/
+static inline qboolean R_IsAlphaSurface (const msurface_t *surf)
+{
+	if (!surf || !surf->texinfo)
+		return false;
+
+	if (surf->texinfo->flags & (SURF_TRANS33 | SURF_TRANS66))
+		return true;
+
+#ifdef SIN_MP
+	if (surf->texinfo->flags & SURF_ADD)
+		return true;
+
+	if (SURFACETYPE_FROM_FLAGS(surf->texinfo->flags) == 8 /* SURF_TYPE_GLASS */)
+		return true;
+#endif
+
+	if (surf->texinfo->image && surf->texinfo->image->has_alpha)
+		return true;
+
+	return false;
+}
+
 #define DYNAMIC_LIGHT_WIDTH  128
 #define DYNAMIC_LIGHT_HEIGHT 128
 
@@ -531,7 +558,7 @@ void R_RenderBrushPoly (msurface_t *fa)
 dynamic:
 		if ( gl_dynamic->value )
 		{
-			if (!( fa->texinfo->flags & (SURF_SKY|SURF_TRANS33|SURF_TRANS66|SURF_WARP ) ) )
+			if (!( fa->texinfo->flags & (SURF_SKY|SURF_WARP ) ) && !R_IsAlphaSurface (fa))
 			{
 				is_dynamic = true;
 			}
@@ -605,19 +632,48 @@ void R_DrawAlphaSurfaces (void)
 
 	for (s=r_alpha_surfaces ; s ; s=s->texturechain)
 	{
+		if (!s->texinfo || !s->texinfo->image)
+			continue;
+
 		GL_Bind(s->texinfo->image->texnum);
 		c_brush_polys++;
+
+#ifdef SIN_MP
+		if (s->texinfo->flags & SURF_ADD)
+		{
+			qglBlendFunc (GL_SRC_ALPHA, GL_ONE);
+			qglColor4f (intens, intens, intens, 1.0f);
+		}
+		else
+		{
+			qglBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			if (s->texinfo->flags & SURF_TRANS33)
+				qglColor4f (intens, intens, intens, 0.33f);
+			else if (s->texinfo->flags & SURF_TRANS66)
+				qglColor4f (intens, intens, intens, 0.66f);
+			else if (SURFACETYPE_FROM_FLAGS(s->texinfo->flags) == 8 /* SURF_TYPE_GLASS */)
+				qglColor4f (intens, intens, intens, 0.40f);
+			else
+				qglColor4f (intens, intens, intens, 1.0f);
+		}
+#else
 		if (s->texinfo->flags & SURF_TRANS33)
 			qglColor4f (intens,intens,intens,0.33);
 		else if (s->texinfo->flags & SURF_TRANS66)
 			qglColor4f (intens,intens,intens,0.66);
 		else
 			qglColor4f (intens,intens,intens,1);
+#endif
+
 		if (s->flags & SURF_DRAWTURB)
 			EmitWaterPolys (s);
 		else
 			DrawGLPoly (s->polys);
 	}
+
+#ifdef SIN_MP
+	qglBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#endif
 
 	GL_TexEnv( GL_REPLACE );
 	qglColor4f (1,1,1,1);
@@ -722,7 +778,7 @@ static void GL_RenderLightmappedPoly( msurface_t *surf )
 dynamic:
 		if ( gl_dynamic->value )
 		{
-			if ( !(surf->texinfo->flags & (SURF_SKY|SURF_TRANS33|SURF_TRANS66|SURF_WARP ) ) )
+			if ( !(surf->texinfo->flags & (SURF_SKY|SURF_WARP ) ) && !R_IsAlphaSurface (surf))
 			{
 				is_dynamic = true;
 			}
@@ -918,8 +974,7 @@ void R_DrawInlineBModel (void)
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
-			if ((psurf->texinfo->flags & (SURF_TRANS33|SURF_TRANS66)) ||
-			    (psurf->texinfo->image && psurf->texinfo->image->has_alpha))
+			if (R_IsAlphaSurface (psurf))
 			{	// add to the translucent chain
 				psurf->texturechain = r_alpha_surfaces;
 				r_alpha_surfaces = psurf;
@@ -1126,8 +1181,7 @@ void R_RecursiveWorldNode (mnode_t *node)
 		{	// just adds to visible sky bounds
 			R_AddSkySurface (surf);
 		}
-		else if ((surf->texinfo->flags & (SURF_TRANS33|SURF_TRANS66)) ||
-		         (surf->texinfo->image && surf->texinfo->image->has_alpha))
+		else if (R_IsAlphaSurface (surf))
 		{	// add to the translucent chain
 			surf->texturechain = r_alpha_surfaces;
 			r_alpha_surfaces = surf;

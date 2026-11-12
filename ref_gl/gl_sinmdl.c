@@ -226,9 +226,9 @@ sin_decode_into (sinmdl_t *m, sinmdl_anim_t *a, int nxyz, int frame, vec3_t *out
 }
 
 static void
-sin_setup_pose (sinmdl_t *m, int anim, int frame, int oldframe, float backlerp)
+sin_setup_pose (sinmdl_t *m, int anim, int frame, int oldanim, int oldframe, float backlerp)
 {
-	sinmdl_anim_t	*a;
+	sinmdl_anim_t	*a, *oa;
 	int				i;
 	float			frontlerp;
 
@@ -240,25 +240,32 @@ sin_setup_pose (sinmdl_t *m, int anim, int frame, int oldframe, float backlerp)
 	if (a->nframes < 1)
 		return;
 
+	if (oldanim < 0 || oldanim >= m->num_anims)
+		oldanim = anim;
+	oa = &m->anims[oldanim];
+	if (oa->nframes < 1)
+	{
+		oldanim = anim;
+		oa = a;
+	}
+
 	if (frame < 0)
 		frame = 0;
 	if (frame >= a->nframes)
 		frame %= a->nframes;
-	if (oldframe < 0 || oldframe >= a->nframes)
-		oldframe = frame;
+	if (oldframe < 0)
+		oldframe = 0;
+	if (oldframe >= oa->nframes)
+		oldframe %= oa->nframes;
 
-	if (anim == m->last_anim && frame == m->last_frame
-		&& oldframe == m->last_oldframe && backlerp < 0.001f)
-		return;
-
-	if (backlerp < 0.001f || oldframe == frame || !m->xyz_old)
+	if (backlerp < 0.001f || (oldanim == anim && oldframe == frame) || !m->xyz_old)
 	{
 		sin_decode_into (m, a, m->nxyz, frame, m->xyz);
 	}
 	else
 	{
 		frontlerp = 1.f - backlerp;
-		sin_decode_into (m, a, m->nxyz, oldframe, m->xyz_old);
+		sin_decode_into (m, oa, m->nxyz, oldframe, m->xyz_old);
 		sin_decode_into (m, a, m->nxyz, frame, m->xyz);
 		for (i = 0; i < m->nxyz; i++)
 		{
@@ -562,6 +569,8 @@ void Mod_LoadSinDef (model_t *mod, void *buffer)
 	for (i = 0; i < parsed.num_skins && i < SINMDL_MAX_SKINS; i++)
 	{
 		sin_join (skin_path, sizeof (skin_path), parsed.path, parsed.skins[i]);
+		strncpy (m->skin_names[m->num_skins], skin_path, sizeof (m->skin_names[0]) - 1);
+		m->skin_names[m->num_skins][sizeof (m->skin_names[0]) - 1] = 0;
 		m->skins[m->num_skins] = GL_FindImage (skin_path, it_skin);
 		if (m->skins[m->num_skins])
 			m->num_skins++;
@@ -571,10 +580,20 @@ void Mod_LoadSinDef (model_t *mod, void *buffer)
 	else if (parsed.skin[0])
 	{
 		sin_join (skin_path, sizeof (skin_path), parsed.path, parsed.skin);
+		strncpy (m->skin_names[0], skin_path, sizeof (m->skin_names[0]) - 1);
+		m->skin_names[0][sizeof (m->skin_names[0]) - 1] = 0;
 		m->skin = GL_FindImage (skin_path, it_skin);
+		if (m->skin)
+		{
+			m->skins[0] = m->skin;
+			m->num_skins = 1;
+		}
 	}
 
-	sin_setup_pose (m, sin_pick_default_anim (m), 0, 0, 0.f);
+	{
+		int def_anim = sin_pick_default_anim (m);
+		sin_setup_pose (m, def_anim, 0, def_anim, 0, 0.f);
+	}
 
 	ri.Con_Printf (PRINT_ALL, "Mod_LoadSinDef: %s -> %s (%d verts, %d anims, %d skins, scale=%.2f)%s\n",
 		mod->name, sbm_path, m->nxyz, m->num_anims, m->num_skins, m->def_scale,
@@ -603,34 +622,59 @@ void R_DrawSinModel (entity_t *e)
 	backlerp = e->backlerp;
 	if (m && m->num_anims > 0 && m->nxyz > 0)
 	{
-		qboolean	world = !(e->flags & RF_WEAPONMODEL);
+		int			oldanim = e->oldanim;
 
 		anim = e->sin_anim;
 		if (anim < 0 || anim >= m->num_anims)
 			anim = sin_pick_default_anim (m);
 
-		/*
-		 * World/TP: trust networked anim+frame (frame 0 is valid).
-		 * Viewgun: time-loop idle when frame unset.
-		 */
-		if (e->frame >= 0 && e->frame < m->anims[anim].nframes)
-		{
-			fr = e->frame;
-			if (e->oldframe >= 0 && e->oldframe < m->anims[anim].nframes)
-				ofr = e->oldframe;
-			else
-				ofr = fr;
-		}
-		else if (m->anims[anim].nframes > 1)
-		{
-			float	ft = r_newrefdef.time * m->anims[anim].fps;
+		if (oldanim < 0 || oldanim >= m->num_anims)
+			oldanim = anim;
 
-			fr = (int)ft % m->anims[anim].nframes;
-			ofr = (fr + m->anims[anim].nframes - 1) % m->anims[anim].nframes;
-			backlerp = 1.f - (ft - (float)(int)ft);
-		}
+		if (anim >= 0 && anim < m->num_anims)
+		{
+			sinmdl_anim_t *a = &m->anims[anim];
+			sinmdl_anim_t *oa = &m->anims[oldanim];
+			if (a->nframes > 0 && oa->nframes > 0)
+			{
+				fr = (e->frame >= 0) ? (e->frame % a->nframes) : 0;
+				ofr = (e->oldframe >= 0) ? (e->oldframe % oa->nframes) : fr;
+				backlerp = e->backlerp;
 
-		sin_setup_pose (m, anim, fr, ofr, backlerp);
+				if (anim == oldanim)
+				{
+					/* Subframe interpolation between server frames within the same animation */
+					int diff = fr - ofr;
+					if (diff < 0)
+						diff += a->nframes;
+
+					float delta = (a->fps > 0.0f) ? (0.1f * a->fps) : 1.0f;
+					int exp_diff = (int)(delta + 0.5f);
+					if (exp_diff < 1)
+						exp_diff = 1;
+
+					if (diff > 1 && (diff == exp_diff || diff == exp_diff + 1 || diff == exp_diff - 1))
+					{
+						float base = (1.0f - backlerp) * (float)diff;
+						int offset = (int)base;
+						if (offset >= diff)
+							offset = diff - 1;
+						ofr = (e->oldframe + offset) % a->nframes;
+						fr = (ofr + 1) % a->nframes;
+						backlerp = 1.0f - (base - (float)offset);
+					}
+					else if ((e->flags & RF_WEAPONMODEL) && diff == 0 && a->nframes > 1 && ofr == 0 && fr == 0)
+					{
+						float ft = r_newrefdef.time * a->fps;
+						fr = (int)ft % a->nframes;
+						ofr = (fr + a->nframes - 1) % a->nframes;
+						backlerp = 1.0f - (ft - (float)(int)ft);
+					}
+				}
+
+				sin_setup_pose (m, anim, fr, oldanim, ofr, backlerp);
+			}
+		}
 	}
 
 	if ((e->flags & RF_WEAPONMODEL) && (vg_draw_log++ % 300) == 0)
@@ -707,6 +751,7 @@ void R_DrawSinModel (entity_t *e)
 		if (drawskin)
 		{
 			GL_Bind (drawskin->texnum);
+			GL_TexEnv (GL_MODULATE);
 			qglEnable (GL_TEXTURE_2D);
 		}
 		else

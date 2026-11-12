@@ -33,6 +33,10 @@ Status: `todo` | `stub` | `ported` | `verified`
 | — | `Linux Native SDL2 & ref_gl` | verified | Built and run on Kubuntu 26.04 x86_64; zero compiler/linker errors on GCC 14 |
 | — | `WGL Guards in SDL` | ported | Guarded Win32 WGL function pointers in `sdl/qgl_sdl.c` under `_WIN32` |
 | — | `Game DLL Search Fallback` | ported | Added build/base and relative fallbacks for native `gamex86_64.so` discovery |
+| — | `SINMDL Dual-Anim & Loop Lerp` | ported | Clean-room cross-animation blending and modulo loop subframe interpolation in `ref_gl/gl_sinmdl.c` & `client/cl_ents.c` |
+| — | `WOS 2015 Dir Auto-Mount` | ported | Auto-mount `2015` game folder and set `2015` cvar when gamedir contains `2015` or `wos` in `qcommon/files.c` |
+| — | `Protocol 7 / WOS Temp Events` | ported | Parsed `TE_RANDOM_PARTICLES_FULL` & `TE_TRACER` with graceful non-fatal dispatch in `client/cl_tent.c` |
+| — | `Configstring Sizing Alignment` | ported | Aligned `MAX_NORMCONFIGSTRINGS` vs `MAX_CONFIGSTRINGS` in `game/q_shared.h` |
 
 ## Working Method
 

@@ -289,6 +289,7 @@ typedef struct sinmdl_s
 	int				last_oldframe;
 	sinmdl_surf_t	surfs[SINMDL_MAX_SURFS];
 	int				num_skins;
+	char			skin_names[SINMDL_MAX_SKINS][MAX_QPATH];
 	image_t			*skins[SINMDL_MAX_SKINS];
 	image_t			*skin;
 } sinmdl_t;

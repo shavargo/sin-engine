@@ -171,7 +171,11 @@ CL_RegisterTEntModels
 */
 void CL_RegisterTEntModels (void)
 {
+#ifdef SIN_MP
+	cl_mod_explode = re.RegisterModel ("sprites/explode.spr");
+#else
 	cl_mod_explode = re.RegisterModel ("models/objects/explode/tris.md2");
+#endif
 	cl_mod_smoke = re.RegisterModel ("models/objects/smoke/tris.md2");
 	cl_mod_flash = re.RegisterModel ("models/objects/flash/tris.md2");
 	cl_mod_parasite_segment = re.RegisterModel ("models/monsters/parasite/segment/tris.md2");
@@ -264,21 +268,27 @@ void CL_SmokeAndFlash(vec3_t origin)
 {
 	explosion_t	*ex;
 
-	ex = CL_AllocExplosion ();
-	VectorCopy (origin, ex->ent.origin);
-	ex->type = ex_misc;
-	ex->frames = 4;
-	ex->ent.flags = RF_TRANSLUCENT;
-	ex->start = cl.frame.servertime - 100;
-	ex->ent.model = cl_mod_smoke;
+	if (cl_mod_smoke)
+	{
+		ex = CL_AllocExplosion ();
+		VectorCopy (origin, ex->ent.origin);
+		ex->type = ex_misc;
+		ex->frames = 4;
+		ex->ent.flags = RF_TRANSLUCENT;
+		ex->start = cl.frame.servertime - 100;
+		ex->ent.model = cl_mod_smoke;
+	}
 
-	ex = CL_AllocExplosion ();
-	VectorCopy (origin, ex->ent.origin);
-	ex->type = ex_flash;
-	ex->ent.flags = RF_FULLBRIGHT;
-	ex->frames = 2;
-	ex->start = cl.frame.servertime - 100;
-	ex->ent.model = cl_mod_flash;
+	if (cl_mod_flash)
+	{
+		ex = CL_AllocExplosion ();
+		VectorCopy (origin, ex->ent.origin);
+		ex->type = ex_flash;
+		ex->ent.flags = RF_FULLBRIGHT;
+		ex->frames = 2;
+		ex->start = cl.frame.servertime - 100;
+		ex->ent.model = cl_mod_flash;
+	}
 }
 
 /*
@@ -904,10 +914,29 @@ void CL_ParseTEnt (void)
 	break;
 
 	case TE_SCALED_EXPLOSION: // 14: scaled explosion
+	{
+		float sc;
+		explosion_t *ex;
 		MSG_ReadPos (&net_message, pos);
 		count = MSG_ReadByte (&net_message);
+		sc = (count > 0) ? ((float)count / 64.0f) : 1.0f;
+		ex = CL_AllocExplosion ();
+		VectorCopy (pos, ex->ent.origin);
+		ex->type = ex_misc;
+		ex->ent.flags = RF_FULLBRIGHT | RF_TRANSLUCENT;
+		ex->ent.scale = sc;
+		ex->start = cl.frame.servertime - 100;
+		ex->light = 350 * sc;
+		ex->lightcolor[0] = 1.0;
+		ex->lightcolor[1] = 0.5;
+		ex->lightcolor[2] = 0.2;
+		ex->ent.angles[1] = rand() % 360;
+		ex->ent.model = cl_mod_explode;
+		ex->baseframe = 0;
+		ex->frames = 11;
 		CL_ExplosionParticles (pos);
-		break;
+	}
+	break;
 
 	case TE_PULSE_EXPLOSION: // 15: pulse explosion
 		MSG_ReadPos (&net_message, pos);
@@ -1012,8 +1041,30 @@ void CL_ParseTEnt (void)
 		CL_ParticleEffect (pos, dir, 0xe0, count);
 		break;
 
+	case TE_RANDOM_PARTICLES_FULL: // 26: random full controllable particles
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		lightstyle = MSG_ReadByte (&net_message);
+		count = MSG_ReadByte (&net_message);
+		flags = MSG_ReadByte (&net_message);
+		MSG_ReadByte (&net_message); // size
+		MSG_ReadByte (&net_message); // growrate
+		MSG_ReadByte (&net_message); // speed
+		MSG_ReadByte (&net_message); // spread
+		MSG_ReadByte (&net_message); // accel[0]
+		MSG_ReadByte (&net_message); // accel[1]
+		MSG_ReadByte (&net_message); // accel[2]
+		CL_ParticleEffect2 (pos, dir, 0xe0, count);
+		break;
+
+	case TE_TRACER: // 27: bullet tracer
+		MSG_ReadPos (&net_message, pos);
+		MSG_ReadDir (&net_message, dir);
+		CL_ParticleEffect (pos, dir, 0xe0, 8);
+		break;
+
 	default:
-		Com_Error (ERR_DROP, "CL_ParseTEnt: bad type %i", type);
+		Com_DPrintf ("CL_ParseTEnt: unhandled type %i\n", type);
 		break;
 	}
 }

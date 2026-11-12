@@ -81,6 +81,8 @@ V_AddEntity
 */
 void V_AddEntity (entity_t *ent)
 {
+	if (!ent || (!ent->model && !(ent->flags & RF_BEAM)))
+		return;
 	if (r_numentities >= MAX_ENTITIES)
 		return;
 	r_entities[r_numentities++] = *ent;

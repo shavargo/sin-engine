@@ -46,6 +46,7 @@ qconsole.log
 # Game asset packs & runtime trees (proprietary game data must not be tracked)
 *.sin
 sinroot/
+game_sin/
 
 # Secrets and environment files
 .env
@@ -55,6 +56,10 @@ sinroot/
 docs/
 internal/
 *.notes.md
+GL_GAP_ANALYSIS.md
+VULKAN_PLAN.md
+*_PLAN.md
+*_ANALYSIS.md
 
 # OS artifacts
 Thumbs.db

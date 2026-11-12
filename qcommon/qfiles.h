@@ -389,6 +389,50 @@ typedef struct
 #define	SURF_FLOWING	0x40	// scroll towards angle
 #define	SURF_NODRAW		0x80	// don't bother referencing the texture
 
+#ifdef SIN_MP
+#define	SURF_WAVY            0x400       // surface has waves
+#define	SURF_RICOCHET        0x800       // projectiles bounce off this surface
+#define	SURF_PRELIT          0x1000      // surface has intensity information for pre-lighting
+#define	SURF_CONSOLE         0x4000      // surface has a console on it
+#define	SURF_HARDWAREONLY    0x10000     // surface should only do things in hardware
+#define	SURF_DAMAGE          0x20000     // surface can be damaged
+#define	SURF_WEAK            0x40000     // surface has weak hit points
+#define	SURF_NORMAL          0x80000     // surface has normal hit points
+#define	SURF_ADD             0x100000    // surface will be additive
+#define	SURF_ENVMAPPED       0x200000    // surface is envmapped
+#define	SURF_RANDOMANIMATE   0x400000    // surface start animating on a random frame
+#define	SURF_ANIMATE         0x800000    // surface animates
+#define	SURF_RNDTIME         0x1000000   // time between animations is random
+#define	SURF_TRANSLATE       0x2000000   // surface translates
+#define	SURF_NOMERGE         0x4000000   // surface is not merged in csg phase
+#define	SURF_TYPE_BIT0       0x8000000   // 0 bit of surface type
+#define	SURF_TYPE_BIT1       0x10000000  // 1 bit of surface type
+#define	SURF_TYPE_BIT2       0x20000000  // 2 bit of surface type
+#define	SURF_TYPE_BIT3       0x40000000  // 3 bit of surface type
+
+#define	MASK_SURF_TYPE       (SURF_TYPE_BIT0|SURF_TYPE_BIT1|SURF_TYPE_BIT2|SURF_TYPE_BIT3)
+#define	SURF_START_BIT       27
+#define	SURFACETYPE_FROM_FLAGS(x) (((x) >> SURF_START_BIT) & 0xf)
+
+#define	SURF_TYPE_SHIFT(x)   ((x) << SURF_START_BIT)
+#define	SURF_TYPE_NONE       SURF_TYPE_SHIFT(0)
+#define	SURF_TYPE_WOOD       SURF_TYPE_SHIFT(1)
+#define	SURF_TYPE_METAL      SURF_TYPE_SHIFT(2)
+#define	SURF_TYPE_STONE      SURF_TYPE_SHIFT(3)
+#define	SURF_TYPE_CONCRETE   SURF_TYPE_SHIFT(4)
+#define	SURF_TYPE_DIRT       SURF_TYPE_SHIFT(5)
+#define	SURF_TYPE_FLESH      SURF_TYPE_SHIFT(6)
+#define	SURF_TYPE_GRILL      SURF_TYPE_SHIFT(7)
+#define	SURF_TYPE_GLASS      SURF_TYPE_SHIFT(8)
+#define	SURF_TYPE_FABRIC     SURF_TYPE_SHIFT(9)
+#define	SURF_TYPE_MONITOR    SURF_TYPE_SHIFT(10)
+#define	SURF_TYPE_GRAVEL     SURF_TYPE_SHIFT(11)
+#define	SURF_TYPE_VEGETATION SURF_TYPE_SHIFT(12)
+#define	SURF_TYPE_PAPER      SURF_TYPE_SHIFT(13)
+#define	SURF_TYPE_DUCT       SURF_TYPE_SHIFT(14)
+#define	SURF_TYPE_WATER      SURF_TYPE_SHIFT(15)
+#endif
+
 
 
 

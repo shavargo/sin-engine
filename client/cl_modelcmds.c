@@ -82,6 +82,7 @@ typedef struct
 {
 	qboolean	active;
 	qboolean	beam;
+	qboolean	lightning;		/* procedural electric arc beam */
 	qboolean	follow_gun;		/* positioned relative to the view gun */
 	char		bone[32];
 	vec3_t		offset;			/* forward, right, up from bone */
@@ -503,8 +504,6 @@ static void MC_CmdShootBullets (const mc_ctx_t *c, const sinmdl_singlecmd_t *cmd
 
 		VectorCopy (tr.plane.normal, hitdir);
 		CL_ParticleEffect (tr.endpos, hitdir, 0, 6);
-		if (b == 0)
-			CL_SmokeAndFlash (tr.endpos);
 
 		/* short lived tracer streak */
 		if (!(b & 1))
@@ -598,6 +597,11 @@ static void MC_CmdShootBeam (const mc_ctx_t *c, const sinmdl_singlecmd_t *cmd)
 	fx->life = (int)(life > 10.0f ? life : 80.0f);
 	VectorCopy (src, fx->origin);
 	VectorCopy (end, fx->end);
+	if ((bone && (strstr (bone, "lightning") || strstr (bone, "stun"))) ||
+	    (beammodel && (strstr (beammodel, "lightning") || strstr (beammodel, "stun") || strstr (beammodel, "shock"))))
+	{
+		fx->lightning = true;
+	}
 	if (beammodel && *beammodel)
 		fx->model = re.RegisterModel (beammodel);
 }
@@ -846,9 +850,12 @@ void CL_MC_AddEffects (void)
 			VectorCopy (fx->origin, ent.origin);
 			VectorCopy (fx->end, ent.oldorigin);
 			ent.flags = RF_BEAM | RF_TRANSLUCENT;
+			if (fx->lightning)
+				ent.flags |= RF_GLOW;
 			ent.alpha = 0.35f * (1.0f - frac);
 			ent.frame = 1;
 			ent.skinnum = 0xe0;
+			ent.model = fx->model;
 			V_AddEntity (&ent);
 			continue;
 		}

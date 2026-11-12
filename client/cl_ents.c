@@ -582,7 +582,7 @@ void CL_ParsePlayerstate (frame_t *oldframe, frame_t *newframe)
 	{
 		short gravity = MSG_ReadShort (&net_message);
 		state->pmove.gravity = gravity & 0x1fff;
-		state->pmove.gravity_dir = (gravity >> 13) & 7;
+		state->pmove.gravity_axis = (gravity >> 13) & 7;
 	}
 
 	if (flags & SIN_PS_M_DELTA_ANGLES)
@@ -781,9 +781,11 @@ void CL_FireEntityEvents (frame_t *frame)
 		if (s1->event)
 			CL_EntityEvent (s1);
 
+#ifndef SIN_MP
 		// EF_TELEPORTER acts like an event, but is not cleared each frame
 		if (s1->effects & EF_TELEPORTER)
 			CL_TeleporterParticles (s1);
+#endif
 	}
 }
 
@@ -926,6 +928,11 @@ void CL_ParseFrame (void)
 				SCR_EndLoadingPlaque ();	// get rid of loading plaque
 			if (cl_autocmd && cl_autocmd->string[0])
 				Cbuf_AddText (va("%s\n", cl_autocmd->string));
+			if (cls.key_dest != key_console)
+			{
+				cls.key_dest = key_game;
+				cls.currentconsole = NULL;
+			}
 		}
 		cl.sound_prepped = true;	// can start mixing ambient sounds
 	
@@ -1026,6 +1033,7 @@ void CL_AddPacketEntities (frame_t *frame)
 		effects = s1->effects;
 		renderfx = s1->renderfx;
 
+#ifndef SIN_MP
 			// set frame
 		if (effects & EF_ANIM01)
 			ent.frame = autoanim & 1;
@@ -1036,12 +1044,14 @@ void CL_AddPacketEntities (frame_t *frame)
 		else if (effects & EF_ANIM_ALLFAST)
 			ent.frame = cl.time / 100;
 		else
+#endif
 			ent.frame = s1->frame;
 
 #ifdef SIN_MP
 		ent.sin_anim = s1->anim;
 #endif
 
+#ifndef SIN_MP
 		// quad and pent can do different things on client
 		if (effects & EF_PENT)
 		{
@@ -1073,18 +1083,13 @@ void CL_AddPacketEntities (frame_t *frame)
 		}
 // pmm
 //======
+#endif
 #ifdef SIN_MP
-		/* SiN multi-SAM skeletal models: prevent cross-animation pose blending and handle wrap */
-		if (cent->prev.anim != s1->anim || s1->frame < cent->prev.frame)
-		{
-			ent.oldframe = ent.frame;
-			ent.backlerp = 0.0f;
-		}
-		else
-		{
-			ent.oldframe = cent->prev.frame;
-			ent.backlerp = 1.0f - cl.lerpfrac;
-		}
+		ent.anim = s1->anim;
+		ent.sin_anim = s1->anim;
+		ent.oldanim = cent->prev.anim;
+		ent.oldframe = cent->prev.frame;
+		ent.backlerp = 1.0f - cl.lerpfrac;
 #else
 		ent.oldframe = cent->prev.frame;
 		ent.backlerp = 1.0 - cl.lerpfrac;
@@ -1164,10 +1169,12 @@ void CL_AddPacketEntities (frame_t *frame)
 		if (renderfx == RF_TRANSLUCENT)
 			ent.alpha = 0.70;
 
+#ifndef SIN_MP
 		// render effects (fullbright, translucent, etc)
 		if ((effects & EF_COLOR_SHELL))
 			ent.flags = 0;	// renderfx go on color shell entity
 		else
+#endif
 			ent.flags = renderfx;
 
 		// calculate angles
@@ -1177,6 +1184,7 @@ void CL_AddPacketEntities (frame_t *frame)
 			ent.angles[1] = autorotate;
 			ent.angles[2] = 0;
 		}
+#ifndef SIN_MP
 		// RAFAEL
 		else if (effects & EF_SPINNINGLIGHTS)
 		{
@@ -1192,6 +1200,7 @@ void CL_AddPacketEntities (frame_t *frame)
 				V_AddLight (start, 100, 1, 0, 0);
 			}
 		}
+#endif
 		else
 		{	// interpolate angles
 			float	a1, a2;
@@ -1234,6 +1243,7 @@ void CL_AddPacketEntities (frame_t *frame)
 		if (!s1->modelindex)
 			continue;
 
+#ifndef SIN_MP
 		if (effects & EF_BFG)
 		{
 			ent.flags |= RF_TRANSLUCENT;
@@ -1257,6 +1267,7 @@ void CL_AddPacketEntities (frame_t *frame)
 				ent.alpha = 0.3;
 		}
 //pmm
+#endif
 
 #ifdef SIN_MP
 		CL_MC_ProcessEntity (s1, &ent, false);
@@ -1265,6 +1276,7 @@ void CL_AddPacketEntities (frame_t *frame)
 		// add to refresh list
 		V_AddEntity (&ent);
 
+#ifndef SIN_MP
 		// color shells generate a seperate entity for the main model
 		if (effects & EF_COLOR_SHELL)
 		{
@@ -1272,6 +1284,7 @@ void CL_AddPacketEntities (frame_t *frame)
 			ent.alpha = 0.30;
 			V_AddEntity (&ent);
 		}
+#endif
 
 		ent.skin = NULL;		// never use a custom skin on others
 		ent.skinnum = 0;
@@ -1344,6 +1357,7 @@ void CL_AddPacketEntities (frame_t *frame)
 		}
 #endif
 
+#ifndef SIN_MP
 		if ( effects & EF_POWERSCREEN )
 		{
 			ent.model = cl_mod_powerscreen;
@@ -1353,10 +1367,39 @@ void CL_AddPacketEntities (frame_t *frame)
 			ent.alpha = 0.30;
 			V_AddEntity (&ent);
 		}
+#endif
+
+#ifdef SIN_MP
+		if ((renderfx & RF_DLIGHT) && !(renderfx & RF_DONTDRAW))
+		{
+			float r = (s1->color_r > 0.0f) ? s1->color_r : 1.0f;
+			float g = (s1->color_g > 0.0f) ? s1->color_g : 0.4f;
+			float b = (s1->color_b > 0.0f) ? s1->color_b : 0.05f;
+			float rad = (s1->radius > 0.0f) ? s1->radius : 200.0f;
+			V_AddLight (ent.origin, rad, r, g, b);
+		}
+#endif
 
 		// add automatic particle trails
 		if ( (effects&~EF_ROTATE) )
 		{
+#ifdef SIN_MP
+			if (!(renderfx & RF_DONTDRAW))
+			{
+				if (effects & EF_ROCKET)
+				{
+					CL_RocketTrail (cent->lerp_origin, ent.origin, cent);
+				}
+				else if (effects & EF_PULSE)
+				{
+					V_AddLight (ent.origin, 150, 0.2, 0.4, 1.0);
+				}
+				else if (effects & EF_GIB)
+				{
+					CL_DiminishingTrail (cent->lerp_origin, ent.origin, cent, EF_GIB);
+				}
+			}
+#else
 			if (effects & EF_ROCKET)
 			{
 				CL_RocketTrail (cent->lerp_origin, ent.origin, cent);
@@ -1494,6 +1537,7 @@ void CL_AddPacketEntities (frame_t *frame)
 				}
 				V_AddLight (ent.origin, 130, 1, 0.5, 0.5);
 			}
+#endif
 		}
 
 		VectorCopy (ent.origin, cent->lerp_origin);
@@ -1549,6 +1593,8 @@ void CL_AddViewWeapon (player_state_t *ps, player_state_t *ops)
 #ifdef SIN_MP
 	gun.flags = (view_weapon.flags & ~RF_VIEWERMODEL) | RF_MINLIGHT | RF_WEAPONMODEL;
 	gun.sin_anim = view_weapon.sin_anim;
+	gun.anim = view_weapon.anim;
+	gun.oldanim = view_weapon.oldanim;
 	gun.frame = view_weapon.frame;
 	gun.oldframe = view_weapon.oldframe;
 	gun.backlerp = view_weapon.backlerp;
