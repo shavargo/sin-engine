@@ -228,6 +228,14 @@ int FS_FOpenFile (char *filename, FILE **file)
 
 	file_from_pak = 0;
 
+	// Yamagi Q2 path traversal security check
+	if (!filename || strstr (filename, "..") || strchr (filename, ':') || filename[0] == '/' || filename[0] == '\\')
+	{
+		Com_DPrintf ("FS_FOpenFile: refusing unsafe path: %s\n", filename ? filename : "NULL");
+		*file = NULL;
+		return -1;
+	}
+
 	// check for links first
 	for (link = fs_links ; link ; link=link->next)
 	{
@@ -962,7 +970,7 @@ void FS_InitPlayerdir (void)
 	char playerpath[MAX_OSPATH];
 	int i;
 
-	cl_player = Cvar_Get ("player", "blade", 0);
+	cl_player = Cvar_Get ("player", "blade", CVAR_ARCHIVE);
 	strcpy (playerpath, cl_player->string);
 
 	for (i = 0; i < (int)strlen(playerpath); i++)

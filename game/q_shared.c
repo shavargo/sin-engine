@@ -1225,19 +1225,92 @@ void Com_sprintf (char *dest, int size, char *fmt, ...)
 {
 	int		len;
 	va_list		argptr;
-	char	bigbuffer[0x10000];
-	static int	in_sprintf;
 
-	va_start (argptr,fmt);
-	len = vsprintf (bigbuffer,fmt,argptr);
+	if (!dest || size <= 0)
+		return;
+
+	va_start (argptr, fmt);
+	len = vsnprintf (dest, size, fmt, argptr);
 	va_end (argptr);
-	if (len >= size && !in_sprintf)
+
+	if (len < 0 || len >= size)
 	{
-		in_sprintf = 1;
-		Com_Printf ("Com_sprintf: overflow of %i in %i\n", len, size);
-		in_sprintf = 0;
+		dest[size - 1] = '\0';
 	}
-	strncpy (dest, bigbuffer, size-1);
+}
+
+int Q_strlcpy (char *dst, const char *src, int size)
+{
+	const char *s = src;
+
+	if (!dst || size <= 0)
+		return 0;
+
+	if (!src)
+	{
+		dst[0] = '\0';
+		return 0;
+	}
+
+	while (*s)
+	{
+		if (size > 1)
+		{
+			*dst++ = *s;
+			size--;
+		}
+		s++;
+	}
+
+	*dst = '\0';
+	return (int)(s - src);
+}
+
+int Q_strlcat (char *dst, const char *src, int size)
+{
+	char *d = dst;
+
+	if (!dst || size <= 0)
+		return 0;
+
+	while (size > 0 && *d)
+	{
+		size--;
+		d++;
+	}
+
+	return (int)(d - dst) + Q_strlcpy (d, src, size);
+}
+
+size_t Q_strlcpy_ascii (char *d, const char *s, size_t n)
+{
+	size_t ns = 0;
+	char c;
+	int dzero = (n == 0);
+
+	if (!dzero)
+	{
+		n--;
+	}
+
+	while ((c = *s++) != '\0')
+	{
+		if ((c >= 32) && (c <= 126))
+		{
+			if (ns < n)
+			{
+				*d++ = c;
+			}
+			ns++;
+		}
+	}
+
+	if (!dzero)
+	{
+		*d = '\0';
+	}
+
+	return ns;
 }
 
 /*
@@ -1400,7 +1473,7 @@ void Info_SetValueForKey (char *s, char *key, char *value)
 
 	Com_sprintf (newi, sizeof(newi), "\\%s\\%s", key, value);
 
-	if (strlen(newi) + strlen(s) > maxsize)
+	if (strlen(newi) + strlen(s) >= maxsize)
 	{
 		Com_Printf ("Info string length exceeded\n");
 		return;

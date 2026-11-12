@@ -234,6 +234,9 @@ char *COM_Parse (char **data_p);
 // data is an in/out parm, returns a parsed out token
 
 void Com_sprintf (char *dest, int size, char *fmt, ...);
+int  Q_strlcpy (char *dst, const char *src, int size);
+int  Q_strlcat (char *dst, const char *src, int size);
+size_t Q_strlcpy_ascii (char *d, const char *s, size_t n);
 
 void Com_PageInMemory (byte *buffer, int size);
 
@@ -712,6 +715,7 @@ typedef struct
 #define RF_BEAM				128
 #define	RF_CUSTOMSKIN		256		// skin is an index in image_precache
 #define	RF_GLOW				512		// pulse lighting for bonus items
+#define RF_DONTDRAW			(1<<10)
 #define RF_SHELL_RED		1024
 #define	RF_SHELL_GREEN		2048
 #define RF_SHELL_BLUE		4096
@@ -1014,6 +1018,62 @@ extern	vec3_t monster_flash_offset [];
 // at a location seperate from any existing entity.
 // Temporary entity messages are explicitly constructed
 // and broadcast.
+#ifdef SIN_MP
+typedef enum
+{
+	TE_GUNSHOT,					// 0: bullet hitting wall (pos, dir, timeofs byte)
+	TE_PARTICLES,				// 1: general particles
+	TE_RANDOM_PARTICLES,		// 2: random particles
+	TE_TESSELATE,				// 3: surface chips / tessellation
+	TE_LASER,					// 4: deprecated
+	TE_BURNWALL,				// 5: burn lightmap
+	TE_TEMPMODEL,				// 6: temporary model
+	TE_STRIKE,					// 7: impact strike (pos, dir, lightstyle, surftype)
+	TE_DLIGHT,					// 8: dynamic light
+	TE_ROCKET_EXPLOSION,		// 9: explosion
+	TE_BEAM,					// 10: beam
+	TE_DAMAGE_WALL,				// 11: wall damage
+	TE_TELEPORT_EFFECT,			// 12: teleport
+	TE_BULLET_SPRAY,			// 13: bullet spray
+	TE_SCALED_EXPLOSION,		// 14: scaled explosion
+	TE_PULSE_EXPLOSION,			// 15: pulse explosion
+	TE_FLAMETHROWER,			// 16: flamethrower
+	TE_FLAMETHROWERROW,			// 17: row of flames
+	TE_FLAMETHROWERHIT,			// 18: flame hit
+	TE_FLAME,					// 19: multipurpose flame puff
+	TE_NUKE_EXPLOSION,			// 20: nuke explosion
+	TE_BOW_EXPLOSION,			// 21: bow explosion
+	TE_HOVERBOOSTER,			// 22: hoverbike booster
+	TE_SIZED_PARTICLES,			// 23: sized particles
+	TE_RANDOM_SIZED_PARTICLES,	// 24: random sized particles
+	TE_PARTICLES_FULL			// 25: full controllable particles
+} temp_event_t;
+
+#define TM_ORIGIN	0x01
+#define TM_ANGLES	0x02
+#define TM_ANIM		0x04
+#define TM_SCALE	0x08
+#define TM_FLAGS	0x10
+#define TM_OWNER	0x20
+#define TM_LIFE		0x40
+#define TM_ALPHA	0x80
+
+#define BM_ALPHA					(1<<0)
+#define BM_SCALE					(1<<1)
+#define BM_FLAGS					(1<<2)
+#define BM_LIFE						(1<<3)
+
+#define TESS_ORIGIN			0x01
+#define TESS_MINSIZE		0x02
+#define TESS_MAXSIZE		0x04
+#define TESS_DIR			0x08
+#define TESS_POWER			0x10
+#define TESS_PERCENT		0x20
+#define TESS_THICK			0x40
+#define TESS_ENTNUM			0x80
+#define TESS_LIGHTSTYLE		0x100
+#define TESS_TYPE			0x200
+#else
 typedef enum
 {
 	TE_GUNSHOT,
@@ -1075,6 +1135,7 @@ typedef enum
 	TE_FLECHETTE
 //ROGUE
 } temp_event_t;
+#endif
 
 #define SPLASH_UNKNOWN		0
 #define SPLASH_SPARKS		1
@@ -1106,6 +1167,51 @@ typedef enum
 
 
 // player_state->stats[] indexes
+#ifdef SIN_MP
+#define STAT_HEALTH					0
+#define STAT_WEAPONLIST				1
+#define STAT_AMMO					2
+#define STAT_SELECTED_ICON			3
+#define STAT_SELECTED_AMOUNT		4
+#define STAT_PREVIOUS_ICON			5
+#define STAT_NEXT_ICON				6
+#define STAT_PICKUP_ICON			7
+#define STAT_PICKUP_STRING			8
+#define STAT_LAYOUTS				9
+#define STAT_FRAGS					10
+#define STAT_FLASHES				11
+#define STAT_AMMO_BULLET357			12
+#define STAT_AMMO_SHOTGUN			13
+#define STAT_AMMO_BULLET10MM		14
+#define STAT_AMMO_BULLET50MM		15
+#define STAT_AMMO_BULLETPULSE		16
+#define STAT_AMMO_BULLETSNIPER		17
+#define STAT_AMMO_ROCKETS			18
+#define STAT_AMMO_SPIDERMINES		19
+#define STAT_ARMOR_HEAD				20
+#define STAT_ARMOR_BODY				21
+#define STAT_ARMOR_LEGS				22
+#define STAT_ARMOR					23
+#define STAT_SELECTED_MODELINDEX	24
+#define STAT_CURRENT_WEAPON			25
+#define STAT_CROSSHAIR				26
+#define STAT_CLIPAMMO				27
+#define STAT_POWERUPTIMER			28
+#define STAT_POWERUPTYPE			29
+#define STAT_SELECTED_NAME			30
+#define STAT_SELECTED_ITEM			STAT_SELECTED_NAME
+#define STAT_EXITSIGN				31
+
+#define DRAW_STATS			(1<<0)
+#define DRAW_SPECTATOR		(1<<1)
+#define DRAW_MISSIONCPU		(1<<2)
+#define DRAW_SCORES			(1<<3)
+#define DRAW_OVERLAY		(1<<4)
+
+#define STAT_HEALTH_ICON	STAT_HEALTH
+#define STAT_AMMO_ICON		STAT_SELECTED_ICON
+#define STAT_ARMOR_ICON		STAT_ARMOR
+#else
 #define STAT_HEALTH_ICON		0
 #define	STAT_HEALTH				1
 #define	STAT_AMMO_ICON			2
@@ -1127,6 +1233,7 @@ typedef enum
 #define	STAT_FLASHES			15		// cleared each frame, 1 = health, 2 = armor
 #define STAT_CHASE				16
 #define STAT_SPECTATOR			17
+#endif
 
 #define	MAX_STATS				32
 
