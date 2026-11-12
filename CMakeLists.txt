@@ -107,41 +107,39 @@ set(DED_NULL_SOURCES
   null/cd_null.c
 )
 
-# --- game library (stock Quake 2 / SiN game logic) ---
+# --- Clean-Room SiN Game Library (API 14) ---
 if(SIN_BUILD_GAME AND NOT SIN_STATIC_GAME)
-  file(GLOB GAME_SOURCES CONFIGURE_DEPENDS
-    game/g_*.c
-    game/m_*.c
-    game/p_*.c
+  set(SIN_GAME_SOURCES
+    game_clean/g_main.c
+    game_clean/g_spawn.c
+    game_clean/g_utils.c
+    game_clean/p_client.c
     game/q_shared.c
   )
   if(WIN32)
-    add_library(gamex86 SHARED ${GAME_SOURCES} win32/q_shwin.c)
-    target_include_directories(gamex86 PRIVATE game qcommon)
-    target_compile_definitions(gamex86 PRIVATE GAME_DLL)
-    target_link_libraries(gamex86 PRIVATE winmm)
-    target_link_options(gamex86 PRIVATE "/DEF:${CMAKE_SOURCE_DIR}/game/game.def")
-    set_target_properties(gamex86 PROPERTIES
-      OUTPUT_NAME "gamex86"
-      PREFIX ""
-      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/baseq2"
-    )
+    set(GAME_LIB_NAME "gamex86")
+  elseif(APPLE)
+    set(GAME_LIB_NAME "game")
+  elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(GAME_LIB_NAME "gamex86_64")
   else()
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      set(GAME_LIB_NAME "gamex86_64")
-    else()
-      set(GAME_LIB_NAME "gamei386")
-    endif()
-    add_library(game SHARED ${GAME_SOURCES} linux/q_shlinux.c linux/glob.c)
-    target_include_directories(game PRIVATE game qcommon linux)
-    target_compile_definitions(game PRIVATE GAME_DLL)
-    target_link_libraries(game PRIVATE m)
-    set_target_properties(game PROPERTIES
-      OUTPUT_NAME "${GAME_LIB_NAME}"
-      PREFIX ""
-      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/base"
-    )
+    set(GAME_LIB_NAME "gamei386")
   endif()
+
+  add_library(sin_game SHARED ${SIN_GAME_SOURCES})
+  target_include_directories(sin_game PRIVATE game_clean sin game qcommon)
+  target_compile_definitions(sin_game PRIVATE GAME_DLL SIN_MP)
+  if(WIN32)
+    target_link_libraries(sin_game PRIVATE winmm)
+  else()
+    target_link_libraries(sin_game PRIVATE m)
+  endif()
+  set_target_properties(sin_game PROPERTIES
+    OUTPUT_NAME "${GAME_LIB_NAME}"
+    PREFIX ""
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/base"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/base"
+  )
 endif()
 
 # --- dedicated engine ---
